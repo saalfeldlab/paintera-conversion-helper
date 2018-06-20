@@ -29,20 +29,20 @@ public class CommandLineConverter
 	// specified?
 	public static class CommandLineParameters
 	{
-		@Option( names = "--dataset", required = true,
+		@Option( names = { "-d", "--dataset" }, required = true,
 				description = "Comma delimited description of dataset; <n5 root path>,<path/to/dataset>,<raw|label>[,optional name]" )
 		private String[] datasets;
 
-		@Option( names = "--scale", arity = "1..*", description = "Factor by which to downscale the input image. Factors are relative to the previous level, not to level zero. Format either fx,fy,fz or f" )
+		@Option( names = { "-s", "--scale" }, arity = "1..*", description = "Factor by which to downscale the input image. Factors are relative to the previous level, not to level zero. Format either fx,fy,fz or f" )
 		private String[] scales;
 
-		@Option( names = "--outputN5", required = true )
+		@Option( names = { "-r", "--outputN5" }, required = true )
 		private String outputN5;
 
-		@Option( names = "--outputgroup", required = true )
+		@Option( names = { "-g", "--outputgroup" }, required = true )
 		private String outputGroup;
 
-		@Option( names = "--blocksize", arity = "1", required = false )
+		@Option( names = { "-b", "--blocksize" }, arity = "1", required = false )
 		private String blockSize = "64,64,64";
 
 		@Option( names = { "-h", "--help" }, usageHelp = true, description = "display a help message" )
