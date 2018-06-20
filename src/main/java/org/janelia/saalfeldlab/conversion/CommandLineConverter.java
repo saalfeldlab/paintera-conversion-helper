@@ -25,8 +25,6 @@ public class CommandLineConverter
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	// separate for convert vs downscale, or just assume convert if scale not
-	// specified?
 	public static class CommandLineParameters
 	{
 		@Option( names = { "-d", "--dataset" }, required = true,
@@ -79,7 +77,6 @@ public class CommandLineConverter
 
 		String formattedBlockSize = clp.blockSize.split( "," ).length == 1 ? String.join( ",", clp.blockSize, clp.blockSize, clp.blockSize ) : clp.blockSize;
 
-		// process each dataset
 		for ( int i = 0; i < clp.datasets.length; ++i )
 		{
 			final String[] datasetInfo = clp.datasets[ i ].split( "," );
@@ -114,14 +111,12 @@ public class CommandLineConverter
 
 		if ( scales == null )
 		{
-			// just do conversion to dataset 'data'
 			final String outputDataset = Paths.get( fullGroup, "data" ).toString();
 			N5ConvertSpark.main( "--inputN5Path", inputN5, "--inputDatasetPath", inputDataset,
 					"--outputN5Path", outputN5, "--outputDatasetPath", outputDataset, "--blockSize", blockSize );
 		}
 		else
 		{
-			// do conversion to s0 and do some downscaling
 			final String dataGroup = Paths.get( fullGroup, "data" ).toString();
 			writer.createGroup( dataGroup );
 			writer.setAttribute( dataGroup, "multiScale", true );
@@ -131,8 +126,6 @@ public class CommandLineConverter
 
 			double[] downsamplingFactor = new double[] { 1.0, 1.0, 1.0 };
 
-			// n5-spark doesn't handle specifying multiple factors for
-			// downscaling, so we do it manually
 			for ( int scaleNum = 0; scaleNum < scales.length; ++scaleNum )
 			{
 				final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
@@ -151,8 +144,6 @@ public class CommandLineConverter
 		final JsonElement resolution = new N5FSReader( inputN5 ).getAttributes( inputDataset ).get( "resolution" );
 		if ( resolution != null )
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
-		// we do this last to make sure that the data group has already been
-		// created
 	}
 
 	private static void handleLabelDataset( String[] datasetInfo, String[] scales, String outputN5, String outputGroup, String blockSize ) throws IOException
@@ -169,7 +160,6 @@ public class CommandLineConverter
 
 		if ( scales == null )
 		{
-			// just do conversion to dataset 'data' (regular LMT dataset)
 			final String outputDataset = Paths.get( fullGroup, "data" ).toString();
 			ConvertToLabelMultisetType.run( "--input-n5", inputN5, "--dataset", inputDataset,
 					"--output-n5", outputN5, "--block-size", blockSize, outputDataset );
@@ -186,17 +176,12 @@ public class CommandLineConverter
 
 			SparkDownsampler.run( Stream.concat( Stream.of( "--n5-root", outputN5, "--group", dataGroup, "--block-size", blockSize ),
 					Stream.of( scales ) ).toArray( String[]::new ) );
-			// data should be group with "multiScale": true, and datasets s0,
-			// s1, ... sN
 
 		}
-		// outputN5 and outputDataset
 
 		final JsonElement resolution = new N5FSReader( inputN5 ).getAttributes( inputDataset ).get( "resolution" );
 		if ( resolution != null )
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
-		// we do this last to make sure that the data group has already been
-		// created
 	}
 
 	private static void setPainteraDataType( N5FSWriter writer, String group, String type ) throws IOException
