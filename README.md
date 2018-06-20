@@ -28,14 +28,14 @@ java -Dspark.master=local[*] -jar target/paintera-conversion-helper-0.0.1-SNAPSH
 with any desired command line arguments.
 
 ### Command Line Arguments
-* `--dataset` specifies a dataset to convert; uses the following syntax: `<n5 root>,<path
+* `-d` or `--dataset` specifies a dataset to convert; uses the following syntax: `<n5 root>,<path
 /to/dataset>,<raw|label>[,optional name]`. The optional name is only necessary if converting
-multiple datasets of the same type (raw or label).
-* `--outputN5` specifies the N5 root to output to.
-* `--outputgroup` specifies the group path (relative to the output root) to output to.
-* `--blocksize` **OPTIONALLY** specify a global block size to use for the output (comma
+multiple datasets of the same type (raw or label). **Note that this format is comma delimited**.
+* `-r` or `--outputN5` specifies the N5 root to output to.
+* `-g` or `--outputgroup` specifies the group path (relative to the output root) to output to.
+* `-b` or `--blocksize` **OPTIONALLY** specify a global block size to use for the output (comma
 delimited or a single number for isotropic size). Defaults to `64,64,64`.
-* `--scale` **OPTIONALLY** specify multiple resolutions to downscale to. If not present,
+* `-s` or `--scale` **OPTIONALLY** specify multiple resolutions to downscale to. If not present,
 produces a single resolution for each dataset [conforming with formats 3 and 1](https://github.com/saalfeldlab/paintera/issues/61).
 If present, produces the requested downsampling, creating multiscale groups, and storing
 datasets in `s0`, `s1`, ... `sN`, [conforming with formats 3 and 2](https://github.com/saalfeldlab/paintera/issues/61).
