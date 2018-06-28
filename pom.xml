@@ -16,6 +16,7 @@
 
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
+		<enforcer.skip>true</enforcer.skip>
 	</properties>
 
 	<repositories>
