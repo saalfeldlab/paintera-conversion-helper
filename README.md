@@ -17,6 +17,14 @@ Then, to compile the conversion helper into a jar, simply run
 ```
 mvn -Denforcer.skip=true clean package
 ```
+To run locally build a fat jar including Spark:
+```
+mvn -Denforcer.skip=true -PfatWithSpark clean package
+```
+To run on the Janelia cluster build a fat jar without Spark:
+```
+mvn -Denforcer.skip=true -Pfat clean package
+```
 
 ## Running
 This conversion tool currently supports any number of datasets (raw or label) with a
