@@ -37,7 +37,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-label-multisets-spark</artifactId>
+			<artifactId>label-utilities-spark</artifactId>
 			<version>0.1.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
