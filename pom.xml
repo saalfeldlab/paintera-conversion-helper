@@ -36,7 +36,7 @@
 			<version>3.1.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.scijava</groupId>
+			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-label-multisets-spark</artifactId>
 			<version>0.1.0-SNAPSHOT</version>
 		</dependency>
