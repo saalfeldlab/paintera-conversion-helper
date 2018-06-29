@@ -55,7 +55,8 @@ Each scale builds upon the previous one (e.g. `2,2,1 2,2,2` first downscales by 
 java -Dspark.master=local[*] -jar target/paintera-conversion-helper-0.0.1-SNAPSHOT.jar \
      --dataset /path/to/root.n5,/path/to/raw,raw  \
      --dataset /path/to/root.n5,/path/to/labels,label \
-     --outputN5 /path/to/output-root.n5 --outputgroup converted --blocksize 64,64,64 \
+     --outputN5 /path/to/output-root.n5 \
+     --blocksize 64,64,64 \
      --scale 2,2,1 3,3,2 2,2,1
 ```
 
