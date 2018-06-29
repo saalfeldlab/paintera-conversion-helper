@@ -2,16 +2,11 @@
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
 
 ## Compile
-Currently, requires master branches of [n5-label-multisets-spark](https://github.com/saalfeldlab/n5-label-multisets-spark/tree/970e3db71ac908d34d1c925caa471bdeea2a60eb) and [n5-spark](https://github.com/saalfeldlab/n5-spark/tree/fe93932c00dc9d40279d0adb681e47da0737dac4).
-After cloning, those can be installed with
-```
-mvn -Denforcer.skip=true clean install
-```
-and
+Currently, requires master branch of [label-utilities-spark](https://github.com/saalfeldlab/label-utilities-spark).
+After cloning, label-utilities-spark can be installed with
 ```
 mvn clean install
 ```
-respectively.
 
 Then, to compile the conversion helper into a jar, simply run
 ```
