@@ -53,6 +53,9 @@ public class CommandLineConverter
 
 		@Option( names = { "-h", "--help" }, usageHelp = true, description = "display a help message" )
 		private boolean helpRequested;
+
+		@Option( names = { "-r", "--revert" }, description = "Reverts array attributes" )
+		private boolean revert;
 	}
 
 	public static void main( final String[] args ) throws IOException, CmdLineException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
@@ -108,14 +111,14 @@ public class CommandLineConverter
 				LOG.info( String.format( "Handling dataset #%d as RAW data", i ) );
 				try (JavaSparkContext sc = new JavaSparkContext( conf ))
 				{
-					handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5 );
+					handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5, clp.revert );
 				}
 				break;
 			case "label":
 				LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
 				try (JavaSparkContext sc = new JavaSparkContext( conf ))
 				{
-					handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5 );
+					handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert );
 				}
 				break;
 			default:
@@ -130,7 +133,8 @@ public class CommandLineConverter
 			final String[] datasetInfo,
 			final int[] blockSize,
 			final int[][] scales,
-			final String outputN5 ) throws IOException
+			final String outputN5,
+			final boolean revert ) throws IOException
 	{
 		final String inputN5 = datasetInfo[ 0 ];
 		final String inputDataset = datasetInfo[ 1 ];
@@ -180,13 +184,17 @@ public class CommandLineConverter
 
 		}
 
-		final double[] resolution = N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class );
+		final double[] resolution = ConvertToLabelMultisetType.revertInplaceAndReturn(
+				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
+				revert );
 		if ( resolution != null )
 		{
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
 		}
 
-		final double[] offset = N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class );
+		final double[] offset = ConvertToLabelMultisetType.revertInplaceAndReturn(
+				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class ),
+				revert );
 		if ( offset != null )
 		{
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", offset );
@@ -200,7 +208,8 @@ public class CommandLineConverter
 			final int[][] scales,
 			final int[][] blockSizes,
 			final int[] maxNumEntriesArray,
-			final String outputN5 ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
+			final String outputN5,
+			final boolean revert ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
 		final String inputN5 = datasetInfo[ 0 ];
 		final String inputDataset = datasetInfo[ 1 ];
@@ -228,7 +237,7 @@ public class CommandLineConverter
 				outputN5,
 				outputDataset,
 				new GzipCompression(),
-				false );
+				revert );
 
 		writer.setAttribute( fullGroup, "maxId", writer.getAttribute( outputDataset, "maxId", Long.class ) );
 
@@ -244,13 +253,17 @@ public class CommandLineConverter
 
 		LabelToBlockMapping.createMappingWithMultiscaleCheck( sc, outputN5, uniqueLabelsGroup, labelBlockMappingGroupDirectory );
 
-		final double[] resolution = N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class );
+		final double[] resolution = ConvertToLabelMultisetType.revertInplaceAndReturn(
+				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
+				revert );
 		if ( resolution != null )
 		{
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
 		}
 
-		final double[] offset = N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class );
+		final double[] offset = ConvertToLabelMultisetType.revertInplaceAndReturn(
+				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class ),
+				revert );
 		if ( offset != null )
 		{
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", offset );
