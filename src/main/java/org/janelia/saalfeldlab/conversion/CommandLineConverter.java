@@ -5,6 +5,7 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -21,15 +22,12 @@ import org.janelia.saalfeldlab.label.spark.uniquelabels.ExtractUniqueLabelsPerBl
 import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler;
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark;
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark;
 import org.kohsuke.args4j.CmdLineException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.JsonElement;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -103,15 +101,18 @@ public class CommandLineConverter
 		for ( int i = 0; i < clp.datasets.length; ++i )
 		{
 			final String[] datasetInfo = clp.datasets[ i ].split( "," );
+			final SparkConf conf = new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) );
 			switch ( datasetInfo[ 2 ].toLowerCase() )
 			{
 			case "raw":
 				LOG.info( String.format( "Handling dataset #%d as RAW data", i ) );
-				handleRawDataset( datasetInfo, formattedScales, clp.outputN5, formattedBlockSize );
+				try (JavaSparkContext sc = new JavaSparkContext( conf ))
+				{
+					handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5 );
+				}
 				break;
 			case "label":
 				LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
-				final SparkConf conf = new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) );
 				try (JavaSparkContext sc = new JavaSparkContext( conf ))
 				{
 					handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5 );
@@ -124,7 +125,12 @@ public class CommandLineConverter
 		}
 	}
 
-	private static void handleRawDataset( final String[] datasetInfo, final String[] scales, final String outputN5, final String blockSize ) throws IOException, CmdLineException
+	private static void handleRawDataset(
+			final JavaSparkContext sc,
+			final String[] datasetInfo,
+			final int[] blockSize,
+			final int[][] scales,
+			final String outputN5 ) throws IOException
 	{
 		final String inputN5 = datasetInfo[ 0 ];
 		final String inputDataset = datasetInfo[ 1 ];
@@ -136,42 +142,54 @@ public class CommandLineConverter
 
 		setPainteraDataType( writer, fullGroup, "raw" );
 
-		if ( scales == null )
-		{
-			final String outputDataset = Paths.get( fullGroup, "data" ).toString();
-			N5ConvertSpark.main( "--inputN5Path", inputN5, "--inputDatasetPath", inputDataset,
-					"--outputN5Path", outputN5, "--outputDatasetPath", outputDataset, "--blockSize", blockSize );
-		}
-		else
-		{
-			final String dataGroup = Paths.get( fullGroup, "data" ).toString();
-			writer.createGroup( dataGroup );
-			writer.setAttribute( dataGroup, "multiScale", true );
-			final String outputDataset = Paths.get( dataGroup, "s0" ).toString();
-			N5ConvertSpark.main( "--inputN5Path", inputN5, "--inputDatasetPath", inputDataset,
-					"--outputN5Path", outputN5, "--outputDatasetPath", outputDataset, "--blockSize", blockSize );
+		final String dataGroup = Paths.get( fullGroup, "data" ).toString();
+		writer.createGroup( dataGroup );
+		writer.setAttribute( dataGroup, "multiScale", true );
 
-			final double[] downsamplingFactor = new double[] { 1.0, 1.0, 1.0 };
+		final String outputDataset = Paths.get( dataGroup, "s0" ).toString();
+		N5ConvertSpark.convert( sc,
+				() -> ConvertToLabelMultisetType.n5Reader( inputN5 ),
+				inputDataset,
+				() -> new N5FSWriter( outputN5 ),
+				outputDataset,
+				Optional.of( blockSize ),
+				Optional.of( new GzipCompression() ), // TODO pass compression
+														// as parameter
+				Optional.ofNullable( null ),
+				Optional.ofNullable( null ),
+				false );
 
-			for ( int scaleNum = 0; scaleNum < scales.length; ++scaleNum )
+		final double[] downsamplingFactor = new double[] { 1.0, 1.0, 1.0 };
+
+		for ( int scaleNum = 0; scaleNum < scales.length; ++scaleNum )
+		{
+			final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
+
+			N5DownsamplerSpark.downsample( sc,
+					() -> new N5FSWriter( outputN5 ),
+					Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
+					newScaleDataset,
+					scales[ scaleNum ],
+					blockSize );
+
+			for ( int i = 0; i < downsamplingFactor.length; ++i )
 			{
-				final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
-				N5DownsamplerSpark.main( "--n5Path", outputN5, "--inputDatasetPath", Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
-						"--outputDatasetPath", newScaleDataset, "--factors", scales[ scaleNum ], "--blockSize", blockSize );
-
-				final String[] thisScale = scales[ scaleNum ].split( "," );
-				for ( int i = 0; i < downsamplingFactor.length; ++i )
-				{
-					downsamplingFactor[ i ] *= Double.parseDouble( thisScale[ i ] );
-				}
-				writer.setAttribute( newScaleDataset, "downsamplingFactors", downsamplingFactor );
+				downsamplingFactor[ i ] *= scales[ scaleNum ][ i ];
 			}
+			writer.setAttribute( newScaleDataset, "downsamplingFactors", downsamplingFactor );
+
 		}
 
-		final JsonElement resolution = new N5FSReader( inputN5 ).getAttributes( inputDataset ).get( "resolution" );
+		final double[] resolution = N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class );
 		if ( resolution != null )
 		{
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
+		}
+
+		final double[] offset = N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class );
+		if ( offset != null )
+		{
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", offset );
 		}
 	}
 
