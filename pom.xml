@@ -18,6 +18,7 @@
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<enforcer.skip>true</enforcer.skip>
+		<main-class>org.janelia.saalfeldlab.conversion.CommandLineConverter</main-class>
 	</properties>
 
 	<repositories>
@@ -66,6 +67,7 @@
 			<id>fatWithSpark</id>
 			<build>
 				<plugins>
+
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-shade-plugin</artifactId>
