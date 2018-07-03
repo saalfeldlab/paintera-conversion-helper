@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera-conversion-helper</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1.0</version>
 
 	<name>Paintera-Conversion-Helper</name>
 	<description>Command line helper to convert datasets to be paintera friendly.</description>
