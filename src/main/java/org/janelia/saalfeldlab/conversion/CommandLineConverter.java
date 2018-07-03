@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark;
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark;
 import org.kohsuke.args4j.CmdLineException;
@@ -38,7 +39,7 @@ public class CommandLineConverter
 
 	public static class CommandLineParameters
 	{
-		@Option( names = { "-d", "--dataset" }, required = true,
+		@Option( names = { "-d", "--dataset" },
 				description = "Comma delimited description of dataset; <n5 root path>,<path/to/dataset>,<raw|label>[,optional name]" )
 		private String[] datasets;
 
@@ -56,6 +57,9 @@ public class CommandLineConverter
 
 		@Option( names = { "-r", "--revert" }, description = "Reverts array attributes" )
 		private boolean revert;
+
+		@Option( names = { "-c", "--convert-entire-container" }, description = "Convert entire container; auto-detect dataset types" )
+		private String convertEntireContainer;
 	}
 
 	public static void main( final String[] args ) throws IOException, CmdLineException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
@@ -101,30 +105,107 @@ public class CommandLineConverter
 		final int[][] blockSizes = Stream.generate( () -> blockSize ).limit( scales.length ).toArray( int[][]::new );
 		final int[] maxNumEntriesArray = IntStream.generate( () -> -1 ).limit( scales.length ).toArray();
 
-		for ( int i = 0; i < clp.datasets.length; ++i )
+		if ( clp.convertEntireContainer != null )
 		{
-			final String[] datasetInfo = clp.datasets[ i ].split( "," );
-			final SparkConf conf = new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) );
-			switch ( datasetInfo[ 2 ].toLowerCase() )
+			N5Reader n5Reader = ConvertToLabelMultisetType.n5Reader( clp.convertEntireContainer );
+			convertAll( clp.convertEntireContainer, "",
+					new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) ),
+					n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, clp.outputN5, clp.revert );
+		}
+		else
+		{
+			for ( int i = 0; i < clp.datasets.length; ++i )
 			{
-			case "raw":
-				LOG.info( String.format( "Handling dataset #%d as RAW data", i ) );
-				try (JavaSparkContext sc = new JavaSparkContext( conf ))
+				final String[] datasetInfo = clp.datasets[ i ].split( "," );
+				final SparkConf conf = new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) );
+				switch ( datasetInfo[ 2 ].toLowerCase() )
 				{
-					handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5, clp.revert );
+				case "raw":
+					LOG.info( String.format( "Handling dataset #%d as RAW data", i ) );
+					try (JavaSparkContext sc = new JavaSparkContext( conf ))
+					{
+						handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5, clp.revert );
+					}
+					break;
+				case "label":
+					LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
+					try (JavaSparkContext sc = new JavaSparkContext( conf ))
+					{
+						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert );
+					}
+					break;
+				default:
+					LOG.error( String.format( "Did not recognize dataset type '%s' in dataset at position %d!", datasetInfo[ 2 ].toLowerCase(), i ) );
+					break;
 				}
-				break;
-			case "label":
-				LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
-				try (JavaSparkContext sc = new JavaSparkContext( conf ))
-				{
-					handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert );
-				}
-				break;
-			default:
-				LOG.error( String.format( "Did not recognize dataset type '%s' in dataset at position %d!", datasetInfo[ 2 ].toLowerCase(), i ) );
-				break;
 			}
+		}
+	}
+
+	private static void convertAll(
+			final String n5Container,
+			final String targetGroup,
+			final SparkConf conf,
+			final N5Reader n5Reader,
+			final int[] blockSize,
+			final int[][] blockSizes,
+			final int[] maxNumEntriesArray,
+			final int[][] scales,
+			final String outputN5,
+			final boolean revert ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
+	{
+		final String[] subGroupNames = n5Reader.list( targetGroup );
+		for ( final String subGroupName : subGroupNames )
+		{
+			final String fullSubGroupName = Paths.get( targetGroup, subGroupName ).toString();
+			LOG.debug( String.format( "Checking subgroup %s ", fullSubGroupName ) );
+			if ( n5Reader.datasetExists( fullSubGroupName ) )
+			{
+				try
+				{
+					if ( isLabelDataType( n5Reader, fullSubGroupName ) )
+					{
+						LOG.info( String.format( "Autodetected dataset %s as LABEL data", fullSubGroupName ) );
+						try (JavaSparkContext sc = new JavaSparkContext( conf ))
+						{
+							handleLabelDataset( sc, new String[] { n5Container, fullSubGroupName, "label" }, blockSize, scales, blockSizes, maxNumEntriesArray, outputN5, revert );
+						}
+					}
+					else
+					{
+						LOG.info( String.format( "Autodetected dataset %s as RAW data", fullSubGroupName ) );
+						try (JavaSparkContext sc = new JavaSparkContext( conf ))
+						{
+							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, scales, outputN5, revert );
+						}
+					}
+				}
+				catch ( final Exception e )
+				{
+					e.printStackTrace();
+				}
+			}
+			else
+			{
+				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert );
+			}
+		}
+	}
+
+	private static boolean isLabelDataType( N5Reader n5Reader, String fullSubGroupName ) throws IOException
+	{
+		switch ( n5Reader.getDatasetAttributes( fullSubGroupName ).getDataType() )
+		{
+		case UINT8: // label if LMT, otherwise raw
+			return Optional.ofNullable( n5Reader.getAttribute( fullSubGroupName, ConvertToLabelMultisetType.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false );
+		case UINT64:
+		case UINT32:
+		case INT64:
+		case INT32:
+			return true; // these are all label types
+
+		default:
+			return false;
 		}
 	}
 
