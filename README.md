@@ -1,6 +1,17 @@
 # Paintera Conversion Helper
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
 
+## Installation
+paintera-conversion-helper is available on conda on the `hanslovsky` channel:
+```
+conda install -c hanslovsky jrun paintera-conversion-helper
+```
+If necessary, you can install `openjdk` and `maven` from `conda-forge`:
+```
+conda install -c conda-forge maven openjdk
+```
+
+
 ## Compile
 To compile the conversion helper into a jar, simply run
 ```
@@ -18,7 +29,11 @@ mvn -Denforcer.skip=true -Pfat clean package
 ## Running
 This conversion tool currently supports any number of datasets (raw or label) with a
 single (global) block size, and will output to a single N5 group in a paintera-compatible
-format. For local spark usage, run
+format. For local spark usage, run for a conda install:
+```
+paintera-conversion-helper [...]
+```
+or for a locally compiled fat jar:
 ```
 java -Dspark.master=local[*] -jar target/paintera-conversion-helper-0.0.1-SNAPSHOT.jar [...]
 ```
