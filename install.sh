@@ -3,7 +3,7 @@
 PREFIX="${PREFIX:-$HOME/local}"
 BIN_DIR="${PREFIX}/bin"
 JRUN_PATH="${BIN_DIR}/jrun"
-JRUN_URL="https://raw.githubusercontent.com/ctrueden/jrun/3ddde431f6387d76088a12f1eb3fd8f49ff4091d/jrun"
+JRUN_URL="https://raw.githubusercontent.com/ctrueden/jrun/12b21d1427c661bd552163166e0d14e1a45e6658/jrun"
 
 if [ ! -f "${JRUN_PATH}" ]; then
     curl "${JRUN_URL}" -o "${JRUN_PATH}"
