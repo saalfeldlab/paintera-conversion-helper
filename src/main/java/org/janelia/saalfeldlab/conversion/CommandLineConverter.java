@@ -91,11 +91,11 @@ public class CommandLineConverter
 				}
 			}
 		}
-		final int[][] scales = Arrays
+		final int[][] scales = ( formattedScales != null ) ? Arrays
 				.stream( formattedScales )
 				.map( fs -> fs.split( "," ) )
 				.map( s -> Arrays.stream( s ).mapToInt( Integer::parseInt ).toArray() )
-				.toArray( int[][]::new );
+				.toArray( int[][]::new ) : new int[][] {};
 
 		final String formattedBlockSize = clp.blockSize.split( "," ).length == 1 ? String.join( ",", clp.blockSize, clp.blockSize, clp.blockSize ) : clp.blockSize;
 		final int[] blockSize = Arrays
