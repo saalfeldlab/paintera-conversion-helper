@@ -354,6 +354,11 @@ public class CommandLineConverter
 			LabelListDownsampler.addMultiScaleTag( writer, uniqueLabelsGroup );
 
 			writer.setAttribute( fullGroup, "maxId", maxId );
+
+			if ( scales.length > 0 ) // TODO refactor this to be nicer
+			{
+				LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, blockSizes );
+			}
 		}
 		else
 		{
