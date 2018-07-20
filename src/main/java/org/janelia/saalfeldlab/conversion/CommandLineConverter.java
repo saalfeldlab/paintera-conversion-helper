@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark;
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark;
+import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark;
 import org.kohsuke.args4j.CmdLineException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,9 @@ public class CommandLineConverter
 
 		@Option( names = { "-r", "--revert" }, description = "Reverts array attributes" )
 		private boolean revert;
+
+		@Option( names = { "--winner-takes-all-downsampling" }, description = "Use winner-takes-all-downsampling for labels" )
+		private boolean winnerTakesAll;
 
 		@Option( names = { "-c", "--convert-entire-container" }, description = "Convert entire container; auto-detect dataset types" )
 		private String convertEntireContainer;
@@ -110,7 +114,7 @@ public class CommandLineConverter
 			N5Reader n5Reader = ConvertToLabelMultisetType.n5Reader( clp.convertEntireContainer );
 			convertAll( clp.convertEntireContainer, "",
 					new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) ),
-					n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, clp.outputN5, clp.revert );
+					n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, clp.outputN5, clp.revert, clp.winnerTakesAll );
 		}
 		else
 		{
@@ -131,7 +135,7 @@ public class CommandLineConverter
 					LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
 					try (JavaSparkContext sc = new JavaSparkContext( conf ))
 					{
-						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert );
+						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll );
 					}
 					break;
 				default:
@@ -152,7 +156,8 @@ public class CommandLineConverter
 			final int[] maxNumEntriesArray,
 			final int[][] scales,
 			final String outputN5,
-			final boolean revert ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
+			final boolean revert,
+			final boolean winnerTakesAll ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
 		final String[] subGroupNames = n5Reader.list( targetGroup );
 		for ( final String subGroupName : subGroupNames )
@@ -168,7 +173,7 @@ public class CommandLineConverter
 						LOG.info( String.format( "Autodetected dataset %s as LABEL data", fullSubGroupName ) );
 						try (JavaSparkContext sc = new JavaSparkContext( conf ))
 						{
-							handleLabelDataset( sc, new String[] { n5Container, fullSubGroupName, "label" }, blockSize, scales, blockSizes, maxNumEntriesArray, outputN5, revert );
+							handleLabelDataset( sc, new String[] { n5Container, fullSubGroupName, "label" }, blockSize, scales, blockSizes, maxNumEntriesArray, outputN5, revert, winnerTakesAll );
 						}
 					}
 					else
@@ -187,7 +192,7 @@ public class CommandLineConverter
 			}
 			else
 			{
-				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert );
+				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll );
 			}
 		}
 	}
@@ -290,7 +295,8 @@ public class CommandLineConverter
 			final int[][] blockSizes,
 			final int[] maxNumEntriesArray,
 			final String outputN5,
-			final boolean revert ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
+			final boolean revert,
+			final boolean winnerTakesAll ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
 		final String inputN5 = datasetInfo[ 0 ];
 		final String inputDataset = datasetInfo[ 1 ];
@@ -309,27 +315,70 @@ public class CommandLineConverter
 		final String uniqueLabelsGroup = Paths.get( fullGroup, "unique-labels" ).toString();
 		final String labelBlockMappingGroupDirectory = Paths.get( outputN5, fullGroup, "label-to-block-mapping" ).toAbsolutePath().toString();
 
-		// TODO pass compression and reverse array as parameters
-		ConvertToLabelMultisetType.convertToLabelMultisetType(
-				sc,
-				inputN5,
-				inputDataset,
-				initialBlockSize,
-				outputN5,
-				outputDataset,
-				new GzipCompression(),
-				revert );
-
-		writer.setAttribute( fullGroup, "maxId", writer.getAttribute( outputDataset, "maxId", Long.class ) );
-
-		ExtractUniqueLabelsPerBlock.extractUniqueLabels( sc, outputN5, outputN5, outputDataset, Paths.get( uniqueLabelsGroup, "s0" ).toString() );
-		LabelListDownsampler.addMultiScaleTag( writer, uniqueLabelsGroup );
-
-		if ( scales.length > 0 )
+		if ( winnerTakesAll )
 		{
-			// TODO pass compression as parameter
-			SparkDownsampler.downsampleMultiscale( sc, outputN5, dataGroup, scales, blockSizes, maxNumEntriesArray, new GzipCompression() );
-			LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, blockSizes );
+			N5ConvertSpark.convert( sc,
+					() -> ConvertToLabelMultisetType.n5Reader( inputN5 ),
+					inputDataset,
+					() -> new N5FSWriter( outputN5 ),
+					outputDataset,
+					Optional.of( blockSizes[ 0 ] ),
+					Optional.of( new GzipCompression() ), // TODO pass
+															// compression
+															// as parameter
+					Optional.ofNullable( null ),
+					Optional.ofNullable( null ),
+					false );
+
+			final double[] downsamplingFactor = new double[] { 1.0, 1.0, 1.0 };
+
+			for ( int scaleNum = 0; scaleNum < scales.length; ++scaleNum )
+			{
+				final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
+
+				N5LabelDownsamplerSpark.downsampleLabel( sc,
+						() -> new N5FSWriter( outputN5 ),
+						Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
+						newScaleDataset,
+						scales[ scaleNum ] );
+
+				for ( int i = 0; i < downsamplingFactor.length; ++i )
+				{
+					downsamplingFactor[ i ] *= scales[ scaleNum ][ i ];
+				}
+				writer.setAttribute( newScaleDataset, "downsamplingFactors", downsamplingFactor );
+
+			}
+
+			Long maxId = ExtractUniqueLabelsPerBlock.extractUniqueLabels( sc, outputN5, outputN5, outputDataset, Paths.get( uniqueLabelsGroup, "s0" ).toString() );
+			LabelListDownsampler.addMultiScaleTag( writer, uniqueLabelsGroup );
+
+			writer.setAttribute( fullGroup, "maxId", maxId );
+		}
+		else
+		{
+			// TODO pass compression and reverse array as parameters
+			ConvertToLabelMultisetType.convertToLabelMultisetType(
+					sc,
+					inputN5,
+					inputDataset,
+					initialBlockSize,
+					outputN5,
+					outputDataset,
+					new GzipCompression(),
+					revert );
+
+			writer.setAttribute( fullGroup, "maxId", writer.getAttribute( outputDataset, "maxId", Long.class ) );
+
+			ExtractUniqueLabelsPerBlock.extractUniqueLabels( sc, outputN5, outputN5, outputDataset, Paths.get( uniqueLabelsGroup, "s0" ).toString() );
+			LabelListDownsampler.addMultiScaleTag( writer, uniqueLabelsGroup );
+
+			if ( scales.length > 0 )
+			{
+				// TODO pass compression as parameter
+				SparkDownsampler.downsampleMultiscale( sc, outputN5, dataGroup, scales, blockSizes, maxNumEntriesArray, new GzipCompression() );
+				LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, blockSizes );
+			}
 		}
 
 		LabelToBlockMapping.createMappingWithMultiscaleCheck( sc, outputN5, uniqueLabelsGroup, labelBlockMappingGroupDirectory );
