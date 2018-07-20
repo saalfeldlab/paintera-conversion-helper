@@ -53,6 +53,10 @@ Each scale builds upon the previous one (e.g. `2,2,1 2,2,2` first downscales by 
 *again* by 2 in x,y,z for `s2`), otherwise it simply stores a dataset in `s0`.
 * `-r` or `--revert` specifies whether to revert the array attributes, such as when converting
 data stored in (z,y,x) order, which will become (x,y,z) if the `revert` flag is present.
+* `--winner-takes-all-downsampling` specifies whether to use "winner-take-all" downsampling for
+integer-type labels. If this flag is present, it will be assumed that all input label datasets
+are integer/long format (**Not** LabelMultisetType), and "winnter-take-all" downsampling will be used.
+data stored in (z,y,x) order, which will become (x,y,z) if the `revert` flag is present.
 * `-c` or `--convert-entire-container` specifies whether to simply convert an entire container, and
 the path to that container. If present, all `dataset` options will be ignored, and the datasets
 inside of the provided container will be autodetected as *label* or *raw* data
