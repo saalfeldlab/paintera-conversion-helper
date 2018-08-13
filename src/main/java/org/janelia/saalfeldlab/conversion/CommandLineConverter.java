@@ -64,6 +64,12 @@ public class CommandLineConverter
 
 		@Option( names = { "-c", "--convert-entire-container" }, description = "Convert entire container; auto-detect dataset types" )
 		private String convertEntireContainer;
+
+		@Option( names = { "--resolution" }, description = "Voxel size.", split = "," )
+		private double[] resolution;
+
+		@Option( names = { "--offset" }, description = "Offset in world coordinates.", split = "," )
+		private double[] offset;
 	}
 
 	public static void main( final String[] args ) throws IOException, CmdLineException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
@@ -109,12 +115,15 @@ public class CommandLineConverter
 		final int[][] blockSizes = Stream.generate( () -> blockSize ).limit( scales.length ).toArray( int[][]::new );
 		final int[] maxNumEntriesArray = IntStream.generate( () -> -1 ).limit( scales.length ).toArray();
 
+		final Optional<double[]> resolution = Optional.ofNullable(clp.resolution);
+		final Optional<double[]> offset = Optional.ofNullable(clp.offset);
+
 		if ( clp.convertEntireContainer != null )
 		{
 			N5Reader n5Reader = ConvertToLabelMultisetType.n5Reader( clp.convertEntireContainer );
 			convertAll( clp.convertEntireContainer, "",
 					new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) ),
-					n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, clp.outputN5, clp.revert, clp.winnerTakesAll );
+					n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, clp.outputN5, clp.revert, clp.winnerTakesAll, resolution, offset );
 		}
 		else
 		{
@@ -128,14 +137,14 @@ public class CommandLineConverter
 					LOG.info( String.format( "Handling dataset #%d as RAW data", i ) );
 					try (JavaSparkContext sc = new JavaSparkContext( conf ))
 					{
-						handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5, clp.revert );
+						handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5, clp.revert, resolution, offset );
 					}
 					break;
 				case "label":
 					LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
 					try (JavaSparkContext sc = new JavaSparkContext( conf ))
 					{
-						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll );
+						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll, resolution, offset );
 					}
 					break;
 				default:
@@ -157,7 +166,9 @@ public class CommandLineConverter
 			final int[][] scales,
 			final String outputN5,
 			final boolean revert,
-			final boolean winnerTakesAll ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
+			final boolean winnerTakesAll,
+			Optional< double[] > resolution,
+			Optional< double[] > offset ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
 		final String[] subGroupNames = n5Reader.list( targetGroup );
 		for ( final String subGroupName : subGroupNames )
@@ -173,7 +184,7 @@ public class CommandLineConverter
 						LOG.info( String.format( "Autodetected dataset %s as LABEL data", fullSubGroupName ) );
 						try (JavaSparkContext sc = new JavaSparkContext( conf ))
 						{
-							handleLabelDataset( sc, new String[] { n5Container, fullSubGroupName, "label" }, blockSize, scales, blockSizes, maxNumEntriesArray, outputN5, revert, winnerTakesAll );
+							handleLabelDataset( sc, new String[] { n5Container, fullSubGroupName, "label" }, blockSize, scales, blockSizes, maxNumEntriesArray, outputN5, revert, winnerTakesAll, resolution, offset );
 						}
 					}
 					else
@@ -181,7 +192,7 @@ public class CommandLineConverter
 						LOG.info( String.format( "Autodetected dataset %s as RAW data", fullSubGroupName ) );
 						try (JavaSparkContext sc = new JavaSparkContext( conf ))
 						{
-							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, scales, outputN5, revert );
+							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, scales, outputN5, revert, resolution, offset );
 						}
 					}
 				}
@@ -192,7 +203,7 @@ public class CommandLineConverter
 			}
 			else
 			{
-				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll );
+				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll, resolution, offset );
 			}
 		}
 	}
@@ -220,70 +231,67 @@ public class CommandLineConverter
 			final int[] blockSize,
 			final int[][] scales,
 			final String outputN5,
-			final boolean revert ) throws IOException
-	{
-		final String inputN5 = datasetInfo[ 0 ];
-		final String inputDataset = datasetInfo[ 1 ];
-		final String outputGroupName = ( datasetInfo.length == 4 ) ? datasetInfo[ 3 ] : inputDataset;
+			final boolean revert,
+			Optional< double[] > resolution,
+			Optional< double[] > offset ) throws IOException {
+		final String inputN5 = datasetInfo[0];
+		final String inputDataset = datasetInfo[1];
+		final String outputGroupName = (datasetInfo.length == 4) ? datasetInfo[3] : inputDataset;
 		final String fullGroup = outputGroupName;
 
-		final N5FSWriter writer = new N5FSWriter( outputN5 );
-		writer.createGroup( fullGroup );
+		final N5FSWriter writer = new N5FSWriter(outputN5);
+		writer.createGroup(fullGroup);
 
-		setPainteraDataType( writer, fullGroup, "raw" );
+		setPainteraDataType(writer, fullGroup, "raw");
 
-		final String dataGroup = Paths.get( fullGroup, "data" ).toString();
-		writer.createGroup( dataGroup );
-		writer.setAttribute( dataGroup, "multiScale", true );
+		final String dataGroup = Paths.get(fullGroup, "data").toString();
+		writer.createGroup(dataGroup);
+		writer.setAttribute(dataGroup, "multiScale", true);
 
-		final String outputDataset = Paths.get( dataGroup, "s0" ).toString();
-		N5ConvertSpark.convert( sc,
-				() -> ConvertToLabelMultisetType.n5Reader( inputN5 ),
+		final String outputDataset = Paths.get(dataGroup, "s0").toString();
+		N5ConvertSpark.convert(sc,
+				() -> ConvertToLabelMultisetType.n5Reader(inputN5),
 				inputDataset,
-				() -> new N5FSWriter( outputN5 ),
+				() -> new N5FSWriter(outputN5),
 				outputDataset,
-				Optional.of( blockSize ),
-				Optional.of( new GzipCompression() ), // TODO pass compression
-														// as parameter
-				Optional.ofNullable( null ),
-				Optional.ofNullable( null ),
-				false );
+				Optional.of(blockSize),
+				Optional.of(new GzipCompression()), // TODO pass compression
+				// as parameter
+				Optional.ofNullable(null),
+				Optional.ofNullable(null),
+				false);
 
-		final double[] downsamplingFactor = new double[] { 1.0, 1.0, 1.0 };
+		final double[] downsamplingFactor = new double[]{1.0, 1.0, 1.0};
 
-		for ( int scaleNum = 0; scaleNum < scales.length; ++scaleNum )
-		{
-			final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
+		for (int scaleNum = 0; scaleNum < scales.length; ++scaleNum) {
+			final String newScaleDataset = Paths.get(dataGroup, String.format("s%d", scaleNum + 1)).toString();
 
-			N5DownsamplerSpark.downsample( sc,
-					() -> new N5FSWriter( outputN5 ),
-					Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
+			N5DownsamplerSpark.downsample(sc,
+					() -> new N5FSWriter(outputN5),
+					Paths.get(dataGroup, String.format("s%d", scaleNum)).toString(),
 					newScaleDataset,
-					scales[ scaleNum ],
-					blockSize );
+					scales[scaleNum],
+					blockSize);
 
-			for ( int i = 0; i < downsamplingFactor.length; ++i )
-			{
-				downsamplingFactor[ i ] *= scales[ scaleNum ][ i ];
+			for (int i = 0; i < downsamplingFactor.length; ++i) {
+				downsamplingFactor[i] *= scales[scaleNum][i];
 			}
-			writer.setAttribute( newScaleDataset, "downsamplingFactors", downsamplingFactor );
+			writer.setAttribute(newScaleDataset, "downsamplingFactors", downsamplingFactor);
 
 		}
 
-		final double[] resolution = ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
-				revert );
-		if ( resolution != null )
-		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
+		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
+				N5Helpers.n5Reader(inputN5).getAttribute(inputDataset, "resolution", double[].class),
+				revert);
+		if (res != null) {
+			writer.setAttribute(Paths.get(fullGroup, "data").toString(), "resolution", res);
 		}
 
-		final double[] offset = ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class ),
+		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
+				N5Helpers.n5Reader(inputN5).getAttribute(inputDataset, "offset", double[].class),
 				revert );
-		if ( offset != null )
-		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", offset );
+		if (off != null) {
+			writer.setAttribute(Paths.get(fullGroup, "data").toString(), "offset", off);
 		}
 	}
 
@@ -296,7 +304,9 @@ public class CommandLineConverter
 			final int[] maxNumEntriesArray,
 			final String outputN5,
 			final boolean revert,
-			final boolean winnerTakesAll ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
+			final boolean winnerTakesAll,
+			Optional< double[] > resolution,
+			Optional< double[] > offset ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
 		final String inputN5 = datasetInfo[ 0 ];
 		final String inputDataset = datasetInfo[ 1 ];
@@ -388,20 +398,20 @@ public class CommandLineConverter
 
 		LabelToBlockMapping.createMappingWithMultiscaleCheck( sc, outputN5, uniqueLabelsGroup, labelBlockMappingGroupDirectory );
 
-		final double[] resolution = ConvertToLabelMultisetType.revertInplaceAndReturn(
+		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
 				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
 				revert );
-		if ( resolution != null )
+		if ( res != null )
 		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", resolution );
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", res );
 		}
 
-		final double[] offset = ConvertToLabelMultisetType.revertInplaceAndReturn(
+		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
 				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class ),
 				revert );
-		if ( offset != null )
+		if ( off != null )
 		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", offset );
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", off );
 		}
 	}
 
