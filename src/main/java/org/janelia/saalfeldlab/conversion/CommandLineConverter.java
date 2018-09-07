@@ -6,7 +6,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -22,7 +21,6 @@ import org.janelia.saalfeldlab.label.spark.exception.InvalidDataset;
 import org.janelia.saalfeldlab.label.spark.exception.InvalidN5Container;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.ExtractUniqueLabelsPerBlock;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping;
-import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMappingN5;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
@@ -55,8 +53,11 @@ public class CommandLineConverter
 		@Option( names = { "-o", "--outputN5" }, required = true )
 		private String outputN5;
 
-		@Option( names = { "-b", "--blocksize" }, arity = "1", required = false )
-		private String blockSize;
+		@Option( names = {"--blocksize", "-b"}, paramLabel = "BLOCK_SIZE", description = "block size for initial conversion in the format bx,by,bz or b for isotropic block size. Defaults to 64,64,64", split = ",")
+		private int[] blockSize;
+
+		@Option( names = { "--downsample-block-sizes" }, arity = "1..*", description = "Block size for each downscaled level in the format bx,by,bz or b for isotropic block size. Does not need to be specified for each scale level (defaults to previous level if not specified, or BLOCK_SIZE if not specified at all)")
+		private String[] downsampleBlockSizes;
 
 		@Option( names = { "-h", "--help" }, usageHelp = true, description = "display a help message" )
 		private boolean helpRequested;
@@ -92,7 +93,8 @@ public class CommandLineConverter
 			return;
 		}
 
-		clp.blockSize = clp.blockSize == null ? "64,64,64" : clp.blockSize;
+		clp.blockSize = clp.blockSize == null || clp.blockSize.length == 0 ? new int[] {64, 64, 64} : clp.blockSize.length == 3 ? clp.blockSize : new int[] {clp.blockSize[0], clp.blockSize[0], clp.blockSize[0]};
+		clp.downsampleBlockSizes = clp.downsampleBlockSizes == null || clp.downsampleBlockSizes.length == 0 ? IntStream.of(clp.blockSize).mapToObj(Integer::toString).toArray(String[]::new) : clp.downsampleBlockSizes;
 
 		final String[] formattedScales = ( clp.scales != null ? new String[ clp.scales.length ] : null );
 		if ( formattedScales != null )
@@ -115,13 +117,25 @@ public class CommandLineConverter
 				.map( s -> Arrays.stream( s ).mapToInt( Integer::parseInt ).toArray() )
 				.toArray( int[][]::new ) : new int[][] {};
 
-		final String formattedBlockSize = clp.blockSize.split( "," ).length == 1 ? String.join( ",", clp.blockSize, clp.blockSize, clp.blockSize ) : clp.blockSize;
-		final int[] blockSize = Arrays
-				.stream( clp.blockSize.split( "," ) )
-				.mapToInt( Integer::parseInt )
-				.toArray();
-		final int[][] blockSizes = Stream.generate( () -> blockSize ).limit( scales.length ).toArray( int[][]::new );
+		final int[][] downsamplingBlockSizes = new int[clp.scales.length][];
+		Arrays.setAll(downsamplingBlockSizes, level -> {
+			if (level >= clp.downsampleBlockSizes.length)
+			{
+				return downsamplingBlockSizes[level - 1];
+			}
+			else
+			{
+				final String[] split = clp.downsampleBlockSizes[level].split(",");
+				final Stream<String> stream = split.length == 3 ? Stream.of(split) : Stream.generate(() -> split[0]).limit(3);
+				return stream.mapToInt(Integer::parseInt).toArray();
+			}
+		});
+		int[] blockSize = clp.blockSize;
 		final int[] maxNumEntriesArray = IntStream.generate( () -> -1 ).limit( scales.length ).toArray();
+
+		LOG.debug("Got initial block size {}", blockSize);
+		for ( int level = 0; level < downsamplingBlockSizes.length; ++level )
+			LOG.debug("Downsampling block size for level {}: {}", level, downsamplingBlockSizes[level]);
 
 		final Optional<double[]> resolution = Optional.ofNullable(clp.resolution);
 		final Optional<double[]> offset = Optional.ofNullable(clp.offset);
@@ -135,7 +149,7 @@ public class CommandLineConverter
 					new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) ),
 					n5Reader,
 					blockSize,
-					blockSizes,
+					downsamplingBlockSizes,
 					maxNumEntriesArray,
 					scales,
 					clp.outputN5,
@@ -156,14 +170,14 @@ public class CommandLineConverter
 					LOG.info( String.format( "Handling dataset #%d as RAW data", i ) );
 					try (JavaSparkContext sc = new JavaSparkContext( conf ))
 					{
-						handleRawDataset( sc, datasetInfo, blockSize, scales, clp.outputN5, clp.revert, resolution, offset );
+						handleRawDataset( sc, datasetInfo, blockSize, scales, downsamplingBlockSizes, clp.outputN5, clp.revert, resolution, offset );
 					}
 					break;
 				case "label":
 					LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
 					try (JavaSparkContext sc = new JavaSparkContext( conf ))
 					{
-						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll, Optional.ofNullable(clp.labelBlockLookupN5BlockSize), resolution, offset );
+						handleLabelDataset( sc, datasetInfo, blockSize, scales, downsamplingBlockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll, Optional.ofNullable(clp.labelBlockLookupN5BlockSize), resolution, offset );
 					}
 					break;
 				default:
@@ -180,7 +194,7 @@ public class CommandLineConverter
 			final SparkConf conf,
 			final N5Reader n5Reader,
 			final int[] blockSize,
-			final int[][] blockSizes,
+			final int[][] downsamplingBlockSizes,
 			final int[] maxNumEntriesArray,
 			final int[][] scales,
 			final String outputN5,
@@ -209,7 +223,7 @@ public class CommandLineConverter
 									new String[] { n5Container, fullSubGroupName, "label" },
 									blockSize,
 									scales,
-									blockSizes,
+									downsamplingBlockSizes,
 									maxNumEntriesArray,
 									outputN5,
 									revert,
@@ -224,7 +238,7 @@ public class CommandLineConverter
 						LOG.info( String.format( "Autodetected dataset %s as RAW data", fullSubGroupName ) );
 						try (JavaSparkContext sc = new JavaSparkContext( conf ))
 						{
-							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, scales, outputN5, revert, resolution, offset );
+							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, downsamplingBlockSizes, scales, outputN5, revert, resolution, offset );
 						}
 					}
 				}
@@ -235,7 +249,7 @@ public class CommandLineConverter
 			}
 			else
 			{
-				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll, labelBlockLookupN5BlockSize, resolution, offset );
+				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, downsamplingBlockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll, labelBlockLookupN5BlockSize, resolution, offset );
 			}
 		}
 	}
@@ -262,6 +276,7 @@ public class CommandLineConverter
 			final String[] datasetInfo,
 			final int[] blockSize,
 			final int[][] scales,
+			final int[][] downsamplingBlockSizes,
 			final String outputN5,
 			final boolean revert,
 			Optional< double[] > resolution,
@@ -303,7 +318,7 @@ public class CommandLineConverter
 					Paths.get(dataGroup, String.format("s%d", scaleNum)).toString(),
 					newScaleDataset,
 					scales[scaleNum],
-					blockSize);
+					downsamplingBlockSizes[scaleNum]);
 
 			for (int i = 0; i < downsamplingFactor.length; ++i) {
 				downsamplingFactor[i] *= scales[scaleNum][i];
@@ -332,7 +347,7 @@ public class CommandLineConverter
 			final String[] datasetInfo,
 			final int[] initialBlockSize,
 			final int[][] scales,
-			final int[][] blockSizes,
+			final int[][] downsampleBlockSizes,
 			final int[] maxNumEntriesArray,
 			final String outputN5,
 			final boolean revert,
@@ -366,7 +381,7 @@ public class CommandLineConverter
 					inputDataset,
 					() -> new N5FSWriter( outputN5 ),
 					outputDataset,
-					Optional.of( blockSizes[ 0 ] ),
+					Optional.of( initialBlockSize ),
 					Optional.of( new GzipCompression() ), // TODO pass
 															// compression
 															// as parameter
@@ -384,7 +399,8 @@ public class CommandLineConverter
 						() -> new N5FSWriter( outputN5 ),
 						Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
 						newScaleDataset,
-						scales[ scaleNum ] );
+						scales[ scaleNum ],
+						downsampleBlockSizes[ scaleNum ] );
 
 				for ( int i = 0; i < downsamplingFactor.length; ++i )
 				{
@@ -401,7 +417,7 @@ public class CommandLineConverter
 
 			if ( scales.length > 0 ) // TODO refactor this to be nicer
 			{
-				LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, blockSizes );
+				LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, downsampleBlockSizes );
 			}
 		}
 		else
@@ -425,8 +441,8 @@ public class CommandLineConverter
 			if ( scales.length > 0 )
 			{
 				// TODO pass compression as parameter
-				SparkDownsampler.downsampleMultiscale( sc, outputN5, dataGroup, scales, blockSizes, maxNumEntriesArray, new GzipCompression() );
-				LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, blockSizes );
+				SparkDownsampler.downsampleMultiscale( sc, outputN5, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, new GzipCompression() );
+				LabelListDownsampler.donwsampleMultiscale( sc, outputN5, uniqueLabelsGroup, scales, downsampleBlockSizes );
 			}
 		}
 
