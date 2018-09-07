@@ -6,9 +6,11 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.google.gson.JsonElement;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.janelia.saalfeldlab.label.spark.N5Helpers;
@@ -20,6 +22,7 @@ import org.janelia.saalfeldlab.label.spark.exception.InvalidDataset;
 import org.janelia.saalfeldlab.label.spark.exception.InvalidN5Container;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.ExtractUniqueLabelsPerBlock;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping;
+import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMappingN5;
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
@@ -37,6 +40,8 @@ import picocli.CommandLine.Option;
 public class CommandLineConverter
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	private static final String LABEL_BLOCK_LOOKUP_KEY = "labelBlockLookup";
 
 	public static class CommandLineParameters
 	{
@@ -70,6 +75,9 @@ public class CommandLineConverter
 
 		@Option( names = { "--offset" }, description = "Offset in world coordinates.", split = "," )
 		private double[] offset;
+
+		@Option( names = {"--label-block-lookup-backend-n5" }, paramLabel = "BLOCK_SIZE", description = "Use n5 as backend for label block lookup with specified BLOCK_SIZE." )
+		private Integer labelBlockLookupN5BlockSize = null;
 	}
 
 	public static void main( final String[] args ) throws IOException, CmdLineException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
@@ -121,9 +129,20 @@ public class CommandLineConverter
 		if ( clp.convertEntireContainer != null )
 		{
 			N5Reader n5Reader = ConvertToLabelMultisetType.n5Reader( clp.convertEntireContainer );
-			convertAll( clp.convertEntireContainer, "",
+			convertAll(
+					clp.convertEntireContainer,
+					"",
 					new SparkConf().setAppName( MethodHandles.lookup().lookupClass().getName() + " " + Arrays.toString( args ) ),
-					n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, clp.outputN5, clp.revert, clp.winnerTakesAll, resolution, offset );
+					n5Reader,
+					blockSize,
+					blockSizes,
+					maxNumEntriesArray,
+					scales,
+					clp.outputN5,
+					clp.revert,
+					clp.winnerTakesAll,
+					Optional.ofNullable(clp.labelBlockLookupN5BlockSize),
+					resolution, offset );
 		}
 		else
 		{
@@ -144,7 +163,7 @@ public class CommandLineConverter
 					LOG.info( String.format( "Handling dataset #%d as LABEL data", i ) );
 					try (JavaSparkContext sc = new JavaSparkContext( conf ))
 					{
-						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll, resolution, offset );
+						handleLabelDataset( sc, datasetInfo, blockSize, scales, blockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll, Optional.ofNullable(clp.labelBlockLookupN5BlockSize), resolution, offset );
 					}
 					break;
 				default:
@@ -167,6 +186,7 @@ public class CommandLineConverter
 			final String outputN5,
 			final boolean revert,
 			final boolean winnerTakesAll,
+			final Optional<Integer> labelBlockLookupN5BlockSize,
 			Optional< double[] > resolution,
 			Optional< double[] > offset ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
@@ -184,7 +204,19 @@ public class CommandLineConverter
 						LOG.info( String.format( "Autodetected dataset %s as LABEL data", fullSubGroupName ) );
 						try (JavaSparkContext sc = new JavaSparkContext( conf ))
 						{
-							handleLabelDataset( sc, new String[] { n5Container, fullSubGroupName, "label" }, blockSize, scales, blockSizes, maxNumEntriesArray, outputN5, revert, winnerTakesAll, resolution, offset );
+							handleLabelDataset(
+									sc,
+									new String[] { n5Container, fullSubGroupName, "label" },
+									blockSize,
+									scales,
+									blockSizes,
+									maxNumEntriesArray,
+									outputN5,
+									revert,
+									winnerTakesAll,
+									labelBlockLookupN5BlockSize,
+									resolution,
+									offset );
 						}
 					}
 					else
@@ -203,7 +235,7 @@ public class CommandLineConverter
 			}
 			else
 			{
-				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll, resolution, offset );
+				convertAll( n5Container, fullSubGroupName, conf, n5Reader, blockSize, blockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll, labelBlockLookupN5BlockSize, resolution, offset );
 			}
 		}
 	}
@@ -305,6 +337,7 @@ public class CommandLineConverter
 			final String outputN5,
 			final boolean revert,
 			final boolean winnerTakesAll,
+			Optional<Integer> labelBlockLookupN5BlockSize,
 			Optional< double[] > resolution,
 			Optional< double[] > offset ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
 	{
@@ -323,7 +356,8 @@ public class CommandLineConverter
 		writer.setAttribute( dataGroup, "multiScale", true );
 		final String outputDataset = Paths.get( fullGroup, "data", "s0" ).toString();
 		final String uniqueLabelsGroup = Paths.get( fullGroup, "unique-labels" ).toString();
-		final String labelBlockMappingGroupDirectory = Paths.get( outputN5, fullGroup, "label-to-block-mapping" ).toAbsolutePath().toString();
+		final String labelBlockMappingGroup = Paths.get(fullGroup, "label-to-block-mapping" ).toString();
+		final String labelBlockMappingGroupDirectory = Paths.get( outputN5, labelBlockMappingGroup ).toAbsolutePath().toString();
 
 		if ( winnerTakesAll )
 		{
@@ -396,7 +430,19 @@ public class CommandLineConverter
 			}
 		}
 
-		LabelToBlockMapping.createMappingWithMultiscaleCheck( sc, outputN5, uniqueLabelsGroup, labelBlockMappingGroupDirectory );
+		if ( labelBlockLookupN5BlockSize.isPresent() )
+		{
+			LabelToBlockMapping.createMappingWithMultiscaleCheckN5(sc, outputN5, uniqueLabelsGroup, outputN5, labelBlockMappingGroup, labelBlockLookupN5BlockSize.get());
+
+		}
+		else
+		{
+			LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, outputN5, uniqueLabelsGroup, labelBlockMappingGroupDirectory);
+		}
+		if (writer.getAttributes(labelBlockMappingGroup).containsKey(LABEL_BLOCK_LOOKUP_KEY))
+		{
+			writer.setAttribute(fullGroup, LABEL_BLOCK_LOOKUP_KEY, writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement.class));
+		}
 
 		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
 				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
