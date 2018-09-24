@@ -79,6 +79,9 @@ public class CommandLineConverter
 
 		@Option( names = {"--label-block-lookup-backend-n5" }, paramLabel = "BLOCK_SIZE", description = "Use n5 as backend for label block lookup with specified BLOCK_SIZE." )
 		private Integer labelBlockLookupN5BlockSize = null;
+
+		@Option(names = {"--max-num-entries", "-m"}, arity = "1..*", description = "max number of entries for each label multiset at each scale. Pick lower number for higher scale levels")
+		private int[] maxNumEntries;
 	}
 
 	public static void main( final String[] args ) throws IOException, CmdLineException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput
@@ -95,6 +98,7 @@ public class CommandLineConverter
 
 		clp.blockSize = clp.blockSize == null || clp.blockSize.length == 0 ? new int[] {64, 64, 64} : clp.blockSize.length == 3 ? clp.blockSize : new int[] {clp.blockSize[0], clp.blockSize[0], clp.blockSize[0]};
 		clp.downsampleBlockSizes = clp.downsampleBlockSizes == null || clp.downsampleBlockSizes.length == 0 ? IntStream.of(clp.blockSize).mapToObj(Integer::toString).toArray(String[]::new) : clp.downsampleBlockSizes;
+		clp.maxNumEntries = clp.maxNumEntries == null || clp.maxNumEntries.length == 0 ? new int[] {-1} : clp.maxNumEntries;
 
 		final String[] formattedScales = ( clp.scales != null ? new String[ clp.scales.length ] : null );
 		if ( formattedScales != null )
@@ -131,7 +135,9 @@ public class CommandLineConverter
 			}
 		});
 		int[] blockSize = clp.blockSize;
-		final int[] maxNumEntriesArray = IntStream.generate( () -> -1 ).limit( scales.length ).toArray();
+		final int[] maxNumEntriesArray = new int[scales.length];
+		for ( int level = 0; level < maxNumEntriesArray.length; ++level )
+			maxNumEntriesArray[ level ] = level < clp.maxNumEntries.length ? clp.maxNumEntries[ level ] : maxNumEntriesArray[ level - 1 ];
 
 		LOG.debug("Got initial block size {}", blockSize);
 		for ( int level = 0; level < downsamplingBlockSizes.length; ++level )
