@@ -14,12 +14,84 @@
 
 	<name>Paintera-Conversion-Helper</name>
 	<description>Command line helper to convert datasets to be paintera friendly.</description>
+	<url>https://github.com/saalfeldlab/paintera-conversion-helper</url>
+	<inceptionYear>2018</inceptionYear>
+	<organization>
+		<name>HHMI Janelia</name>
+		<url>https://janelia.org</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>GNU General Public License v2.0</name>
+		</license>
+	</licenses>
 
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<enforcer.skip>true</enforcer.skip>
 		<main-class>org.janelia.saalfeldlab.conversion.CommandLineConverter</main-class>
+
+		<license.licenseName>GNU General Public License v2.0</license.licenseName>
+		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
+
+		<!-- NB: Deploy releases to the ImageJ Maven repository. -->
+		<releaseProfiles>deploy-to-imagej</releaseProfiles>
 	</properties>
+
+    <developers>
+		<developer>
+			<id>hanslovsky</id>
+			<name>Philipp Hanslovsky</name>
+			<email>hanslovskyp@janelia.hhmi.org</email>
+			<url />
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
+			<roles>
+				<role>founder</role>
+				<role>lead</role>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+			<timezone>-5</timezone>
+		</developer>
+		<developer>
+			<id>nthistle</id>
+			<name>Neil Thistlethwaite</name>
+			<email>thistlethwaiten@janelia.hhmi.org</email>
+			<url />
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
+			<roles>
+				<role>developer</role>
+			</roles>
+			<timezone>-5</timezone>
+		</developer>
+	</developers>
+
+	<mailingLists>
+		<mailingList>
+			<name>ImageJ Forum</name>
+			<archive>http://forum.imagej.net/</archive>
+		</mailingList>
+	</mailingLists>
+
+	<issueManagement>
+		<system>GitHub</system>
+		<url>https://github.com/saalfeldlab/paintera-conversion-helper/issues</url>
+	</issueManagement>
+
+
+	<ciManagement>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/saalfeldlab/paintera-conversion-helper</url>
+	</ciManagement>
+
+	<scm>
+		<connection>scm:git:git://github.com/saalfeldlab/paintera-conversion-helper</connection>
+		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera-conversion-helper.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/saalfeldlab/paintera-conversion-helper</url>
+	</scm>
 
 	<repositories>
 		<repository>
@@ -27,6 +99,7 @@
 			<url>http://maven.imagej.net/content/groups/public</url>
 		</repository>
 	</repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
