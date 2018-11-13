@@ -1,3 +1,5 @@
+[![](https://travis-ci.org/saalfeldlab/paintera-conversion-helper.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera-conversion-helper)
+
 # Paintera Conversion Helper
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
 
