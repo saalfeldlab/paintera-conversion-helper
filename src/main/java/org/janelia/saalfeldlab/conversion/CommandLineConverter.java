@@ -96,6 +96,7 @@ public class CommandLineConverter
 			return;
 		}
 
+		clp.scales = clp.scales == null ? new String[0] : clp.scales;
 		clp.blockSize = clp.blockSize == null || clp.blockSize.length == 0 ? new int[] {64, 64, 64} : clp.blockSize.length == 3 ? clp.blockSize : new int[] {clp.blockSize[0], clp.blockSize[0], clp.blockSize[0]};
 		clp.downsampleBlockSizes = clp.downsampleBlockSizes == null || clp.downsampleBlockSizes.length == 0 ? IntStream.of(clp.blockSize).mapToObj(Integer::toString).toArray(String[]::new) : clp.downsampleBlockSizes;
 		clp.maxNumEntries = clp.maxNumEntries == null || clp.maxNumEntries.length == 0 ? new int[] {-1} : clp.maxNumEntries;
