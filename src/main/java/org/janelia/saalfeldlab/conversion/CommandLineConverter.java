@@ -54,10 +54,10 @@ public class CommandLineConverter
 		private String outputN5;
 
 		@Option( names = {"--blocksize", "-b"}, paramLabel = "BLOCK_SIZE", description = "block size for initial conversion in the format bx,by,bz or b for isotropic block size. Defaults to 64,64,64", split = ",")
-		private int[] blockSize;
+		private int[] blockSize = null;
 
 		@Option( names = { "--downsample-block-sizes" }, arity = "1..*", description = "Block size for each downscaled level in the format bx,by,bz or b for isotropic block size. Does not need to be specified for each scale level (defaults to previous level if not specified, or BLOCK_SIZE if not specified at all)")
-		private String[] downsampleBlockSizes;
+		private String[] downsampleBlockSizes = null;
 
 		@Option( names = { "-h", "--help" }, usageHelp = true, description = "display a help message" )
 		private boolean helpRequested;
@@ -98,7 +98,9 @@ public class CommandLineConverter
 
 		clp.scales = clp.scales == null ? new String[0] : clp.scales;
 		clp.blockSize = clp.blockSize == null || clp.blockSize.length == 0 ? new int[] {64, 64, 64} : clp.blockSize.length == 3 ? clp.blockSize : new int[] {clp.blockSize[0], clp.blockSize[0], clp.blockSize[0]};
-		clp.downsampleBlockSizes = clp.downsampleBlockSizes == null || clp.downsampleBlockSizes.length == 0 ? IntStream.of(clp.blockSize).mapToObj(Integer::toString).toArray(String[]::new) : clp.downsampleBlockSizes;
+		clp.downsampleBlockSizes = clp.downsampleBlockSizes == null || clp.downsampleBlockSizes.length == 0
+				? new String[] {String.join(",", IntStream.of(clp.blockSize).mapToObj(Integer::toString).toArray(String[]::new))}
+				: clp.downsampleBlockSizes;
 		clp.maxNumEntries = clp.maxNumEntries == null || clp.maxNumEntries.length == 0 ? new int[] {-1} : clp.maxNumEntries;
 
 		final String[] formattedScales = ( clp.scales != null ? new String[ clp.scales.length ] : null );
