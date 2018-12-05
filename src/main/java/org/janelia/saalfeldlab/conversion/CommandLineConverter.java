@@ -247,7 +247,7 @@ public class CommandLineConverter
 						LOG.info( String.format( "Autodetected dataset %s as RAW data", fullSubGroupName ) );
 						try (JavaSparkContext sc = new JavaSparkContext( conf ))
 						{
-							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, downsamplingBlockSizes, scales, outputN5, revert, resolution, offset );
+							handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, "raw" }, blockSize, scales, downsamplingBlockSizes, outputN5, revert, resolution, offset );
 						}
 					}
 				}
