@@ -37,7 +37,7 @@ paintera-conversion-helper [...]
 ```
 or for a locally compiled fat jar:
 ```
-java -Dspark.master=local[*] -jar target/paintera-conversion-helper-0.0.1-SNAPSHOT.jar [...]
+java -Dspark.master=local[*] -jar target/paintera-conversion-helper-0.4.1-SNAPSHOT-shaded.jar [...]
 ```
 with any desired command line arguments.
 
