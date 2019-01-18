@@ -327,7 +327,7 @@ public class CommandLineConverter
 				Optional.ofNullable(null),
 				false);
 
-		final double[] downsamplingFactor = DoubleStream.generate(() -> 1.0).limit(scales.length).toArray();
+		final double[] downsamplingFactor = DoubleStream.generate(() -> 1.0).limit(blockSize.length).toArray();
 
 		for (int scaleNum = 0; scaleNum < scales.length; ++scaleNum) {
 			final String newScaleDataset = Paths.get(dataGroup, String.format("s%d", scaleNum + 1)).toString();
