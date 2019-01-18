@@ -257,8 +257,32 @@ public class CommandLineConverter
 					}
 					else
 					{
-						LOG.info( String.format( "Autodetected dataset %s as RAW data", fullSubGroupName ) );
-						handleRawDataset( sc, new String[] { n5Container, fullSubGroupName, RAW_IDENTIFIER }, blockSize, downsamplingBlockSizes, scales, outputN5, revert, resolution, offset );
+						if (n5Reader.getDatasetAttributes(fullSubGroupName).getNumDimensions() > 3) {
+							LOG.info(String.format("Autodetected dataset %s as CHANNEL data (more than three dimensions)", fullSubGroupName));
+							handleChannelDataset(
+									sc,
+									new String[]{n5Container, fullSubGroupName, CHANNEL_IDENTIFIER},
+									blockSize,
+									scales,
+									downsamplingBlockSizes,
+									outputN5,
+									revert,
+									new HashMap<>(),
+									resolution,
+									offset);
+						} else {
+							LOG.info(String.format("Autodetected dataset %s as RAW data", fullSubGroupName));
+							handleRawDataset(
+									sc,
+									new String[]{n5Container, fullSubGroupName, RAW_IDENTIFIER},
+									blockSize,
+									scales,
+									downsamplingBlockSizes,
+									outputN5,
+									revert,
+									resolution,
+									offset);
+						}
 					}
 				}
 				catch ( final Exception e )
