@@ -119,6 +119,10 @@
 			<artifactId>spark-core_2.11</artifactId>
 			<version>2.4.0</version>
 		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
 
 		<!-- NB: BDV is only in here because n5-spark requires it, and its version 
 			of n5-imglib2 (which has bdv) is overriden by n5-label-multiset-spark's version 
