@@ -8,7 +8,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera-conversion-helper</artifactId>
-	<version>0.5.1-SNAPSHOT</version>
+	<version>0.5.2-SNAPSHOT</version>
 
 	<name>Paintera-Conversion-Helper</name>
 	<description>Command line helper to convert datasets to be paintera friendly.</description>
