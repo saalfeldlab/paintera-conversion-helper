@@ -97,7 +97,11 @@ public class CommandLineConverter
 		private int[] maxNumEntries;
 	}
 
-	public static void main( final String[] args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException
+	public static void main( final String[] args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException {
+		run(args);
+	}
+
+	public static void run( final String... args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException
 	{
 		final CommandLineParameters clp = new CommandLineParameters();
 		final CommandLine cl = new CommandLine( clp );
