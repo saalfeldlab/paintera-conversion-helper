@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import com.google.gson.GsonBuilder;
@@ -54,6 +55,10 @@ public class CommandLineConverter
 	private static final String CHANNEL_AXIS_KEY = "channelAxis";
 
 	private static final String CHANNEL_BLOCKSIZE_KEY = "channelBlockSize";
+
+	private static final String RESOLUTION_KEY = "resolution";
+
+	private static final String OFFSET_KEY = "offset";
 
 	private static final GsonBuilder DEFAULT_BUILDER = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping();
 
@@ -376,17 +381,17 @@ public class CommandLineConverter
 		}
 
 		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader(inputN5).getAttribute(inputDataset, "resolution", double[].class),
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, RESOLUTION_KEY),
 				revert);
 		if (res != null) {
-			writer.setAttribute(Paths.get(fullGroup, "data").toString(), "resolution", res);
+			writer.setAttribute(Paths.get(fullGroup, "data").toString(), RESOLUTION_KEY, res);
 		}
 
 		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader(inputN5).getAttribute(inputDataset, "offset", double[].class),
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, OFFSET_KEY),
 				revert );
 		if (off != null) {
-			writer.setAttribute(Paths.get(fullGroup, "data").toString(), "offset", off);
+			writer.setAttribute(Paths.get(fullGroup, "data").toString(), OFFSET_KEY, off);
 		}
 	}
 
@@ -572,19 +577,19 @@ public class CommandLineConverter
 		}
 
 		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, RESOLUTION_KEY),
 				revert );
 		if ( res != null )
 		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", res );
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), RESOLUTION_KEY, res );
 		}
 
 		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class ),
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, OFFSET_KEY),
 				revert );
 		if ( off != null )
 		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", off );
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), OFFSET_KEY, off );
 		}
 	}
 
@@ -593,5 +598,13 @@ public class CommandLineConverter
 		final HashMap< String, String > painteraDataType = new HashMap<>();
 		painteraDataType.put( "type", type );
 		writer.setAttribute( group, "painteraData", painteraDataType );
+	}
+
+	private static double[] tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(final N5Reader reader, final String dataset, final String attribute) throws IOException {
+		try {
+			return reader.getAttribute(dataset, attribute, double[].class);
+		} catch (ClassCastException e) {
+			return LongStream.of(reader.getAttribute(dataset, attribute, long[].class)).asDoubleStream().toArray();
+		}
 	}
 }
