@@ -311,7 +311,7 @@ public class CommandLineConverter
 		}
 	}
 
-	private static boolean isLabelDataType( N5Reader n5Reader, String fullSubGroupName ) throws IOException
+	static boolean isLabelDataType( final N5Reader n5Reader, final String fullSubGroupName ) throws IOException
 	{
 		switch ( n5Reader.getDatasetAttributes( fullSubGroupName ).getDataType() )
 		{
