@@ -105,7 +105,11 @@ public class CommandLineConverter
 		private int[] maxNumEntries;
 	}
 
-	public static void main( final String[] args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException
+	public static void main( final String[] args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException {
+		run(args);
+	}
+
+	public static void run( final String... args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException
 	{
 		final CommandLineParameters clp = new CommandLineParameters();
 		final CommandLine cl = new CommandLine( clp );
@@ -307,7 +311,7 @@ public class CommandLineConverter
 		}
 	}
 
-	private static boolean isLabelDataType( N5Reader n5Reader, String fullSubGroupName ) throws IOException
+	static boolean isLabelDataType( final N5Reader n5Reader, final String fullSubGroupName ) throws IOException
 	{
 		switch ( n5Reader.getDatasetAttributes( fullSubGroupName ).getDataType() )
 		{
