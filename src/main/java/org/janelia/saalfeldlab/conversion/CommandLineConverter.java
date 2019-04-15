@@ -175,7 +175,7 @@ public class CommandLineConverter
 		try(final JavaSparkContext sc = new JavaSparkContext(conf)) {
 
 			if (clp.convertEntireContainer != null) {
-				N5Reader n5Reader = ConvertToLabelMultisetType.n5Reader(clp.convertEntireContainer);
+				final N5Reader n5Reader = N5Helpers.n5Reader(clp.convertEntireContainer);
 				convertAll(
 						clp.convertEntireContainer,
 						"",
@@ -350,7 +350,7 @@ public class CommandLineConverter
 
 		final String outputDataset = Paths.get(dataGroup, "s0").toString();
 		N5ConvertSpark.convert(sc,
-				() -> ConvertToLabelMultisetType.n5Reader(inputN5),
+				() -> N5Helpers.n5Reader(inputN5),
 				inputDataset,
 				() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
 				outputDataset,
@@ -380,14 +380,14 @@ public class CommandLineConverter
 
 		}
 
-		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
+		final double[] res = resolution.isPresent() ? resolution.get() : N5Helpers.revertInplaceAndReturn(
 				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, RESOLUTION_KEY),
 				revert);
 		if (res != null) {
 			writer.setAttribute(Paths.get(fullGroup, "data").toString(), RESOLUTION_KEY, res);
 		}
 
-		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
+		final double[] off = offset.isPresent() ? offset.get() : N5Helpers.revertInplaceAndReturn(
 				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, OFFSET_KEY),
 				revert );
 		if (off != null) {
@@ -420,7 +420,7 @@ public class CommandLineConverter
 		final String inputDataset = datasetInfo[1];
 		final String outputGroupName = (datasetInfo.length == 4) ? datasetInfo[3] : inputDataset;
 
-		final DatasetAttributes attributes = ConvertToLabelMultisetType.n5Reader(inputN5).getDatasetAttributes(inputDataset);
+		final DatasetAttributes attributes = N5Helpers.n5Reader(inputN5).getDatasetAttributes(inputDataset);
 
 		final int channelAxis = datasetTypeParameters.containsKey(CHANNEL_AXIS_KEY)
 				? Integer.parseInt(datasetTypeParameters.get(CHANNEL_AXIS_KEY))
@@ -493,7 +493,7 @@ public class CommandLineConverter
 		if ( winnerTakesAll )
 		{
 			N5ConvertSpark.convert( sc,
-					() -> ConvertToLabelMultisetType.n5Reader( inputN5 ),
+					() -> N5Helpers.n5Reader( inputN5 ),
 					inputDataset,
 					() -> new N5FSWriter( outputN5, DEFAULT_BUILDER ),
 					outputDataset,
@@ -576,7 +576,7 @@ public class CommandLineConverter
 			writer.setAttribute(fullGroup, LABEL_BLOCK_LOOKUP_KEY, writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement.class));
 		}
 
-		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
+		final double[] res = resolution.isPresent() ? resolution.get() : N5Helpers.revertInplaceAndReturn(
 				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, RESOLUTION_KEY),
 				revert );
 		if ( res != null )
@@ -584,7 +584,7 @@ public class CommandLineConverter
 			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), RESOLUTION_KEY, res );
 		}
 
-		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
+		final double[] off = offset.isPresent() ? offset.get() : N5Helpers.revertInplaceAndReturn(
 				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, OFFSET_KEY),
 				revert );
 		if ( off != null )
