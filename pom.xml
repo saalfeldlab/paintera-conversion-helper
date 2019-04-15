@@ -3,12 +3,12 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>22.0.0</version>
+		<version>25.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera-conversion-helper</artifactId>
-	<version>0.5.2-SNAPSHOT</version>
+	<version>0.5.3-SNAPSHOT</version>
 
 	<name>Paintera-Conversion-Helper</name>
 	<description>Command line helper to convert datasets to be paintera friendly.</description>
@@ -25,7 +25,6 @@
 	</licenses>
 
 	<properties>
-		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<enforcer.skip>true</enforcer.skip>
 		<main-class>org.janelia.saalfeldlab.conversion.CommandLineConverter</main-class>
 
@@ -102,22 +101,16 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities-spark</artifactId>
-			<version>0.3.0</version>
+			<version>0.8.0</version>
 		</dependency>
 		<dependency>
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
-			<version>3.1.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.lz4</groupId>
-			<artifactId>lz4-java</artifactId>
-			<version>1.4.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-spark</artifactId>
-			<version>3.0.0</version>
+			<version>3.1.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>ome</groupId>
@@ -128,19 +121,10 @@
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_2.11</artifactId>
-			<version>2.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-		</dependency>
-
-		<!-- NB: BDV is only in here because n5-spark requires it, and its version 
-			of n5-imglib2 (which has bdv) is overriden by n5-label-multiset-spark's version 
-			of n5-imglib2 -->
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bigdataviewer-core</artifactId>
 		</dependency>
 
 		<dependency>
@@ -209,7 +193,6 @@
 				<dependency>
 					<groupId>org.apache.spark</groupId>
 					<artifactId>spark-core_2.11</artifactId>
-					<version>2.2.0</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>

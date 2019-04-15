@@ -10,8 +10,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -53,6 +55,12 @@ public class CommandLineConverter
 	private static final String CHANNEL_AXIS_KEY = "channelAxis";
 
 	private static final String CHANNEL_BLOCKSIZE_KEY = "channelBlockSize";
+
+	private static final String RESOLUTION_KEY = "resolution";
+
+	private static final String OFFSET_KEY = "offset";
+
+	private static final GsonBuilder DEFAULT_BUILDER = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping();
 
 	public static class CommandLineParameters
 	{
@@ -171,7 +179,7 @@ public class CommandLineConverter
 		try(final JavaSparkContext sc = new JavaSparkContext(conf)) {
 
 			if (clp.convertEntireContainer != null) {
-				N5Reader n5Reader = ConvertToLabelMultisetType.n5Reader(clp.convertEntireContainer);
+				final N5Reader n5Reader = N5Helpers.n5Reader(clp.convertEntireContainer);
 				convertAll(
 						clp.convertEntireContainer,
 						"",
@@ -335,7 +343,7 @@ public class CommandLineConverter
 		final String outputGroupName = (datasetInfo.length == 4) ? datasetInfo[3] : inputDataset;
 		final String fullGroup = outputGroupName;
 
-		final N5FSWriter writer = new N5FSWriter(outputN5);
+		final N5FSWriter writer = new N5FSWriter(outputN5, DEFAULT_BUILDER);
 		writer.createGroup(fullGroup);
 
 		setPainteraDataType(writer, fullGroup, RAW_IDENTIFIER);
@@ -346,9 +354,9 @@ public class CommandLineConverter
 
 		final String outputDataset = Paths.get(dataGroup, "s0").toString();
 		N5ConvertSpark.convert(sc,
-				() -> ConvertToLabelMultisetType.n5Reader(inputN5),
+				() -> N5Helpers.n5Reader(inputN5),
 				inputDataset,
-				() -> new N5FSWriter(outputN5),
+				() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
 				outputDataset,
 				Optional.of(blockSize),
 				Optional.of(new GzipCompression()), // TODO pass compression
@@ -363,7 +371,7 @@ public class CommandLineConverter
 			final String newScaleDataset = Paths.get(dataGroup, String.format("s%d", scaleNum + 1)).toString();
 
 			N5DownsamplerSpark.downsample(sc,
-					() -> new N5FSWriter(outputN5),
+					() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
 					Paths.get(dataGroup, String.format("s%d", scaleNum)).toString(),
 					newScaleDataset,
 					scales[scaleNum],
@@ -376,18 +384,18 @@ public class CommandLineConverter
 
 		}
 
-		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader(inputN5).getAttribute(inputDataset, "resolution", double[].class),
+		final double[] res = resolution.isPresent() ? resolution.get() : N5Helpers.revertInplaceAndReturn(
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, RESOLUTION_KEY),
 				revert);
 		if (res != null) {
-			writer.setAttribute(Paths.get(fullGroup, "data").toString(), "resolution", res);
+			writer.setAttribute(Paths.get(fullGroup, "data").toString(), RESOLUTION_KEY, res);
 		}
 
-		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader(inputN5).getAttribute(inputDataset, "offset", double[].class),
+		final double[] off = offset.isPresent() ? offset.get() : N5Helpers.revertInplaceAndReturn(
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, OFFSET_KEY),
 				revert );
 		if (off != null) {
-			writer.setAttribute(Paths.get(fullGroup, "data").toString(), "offset", off);
+			writer.setAttribute(Paths.get(fullGroup, "data").toString(), OFFSET_KEY, off);
 		}
 	}
 
@@ -416,7 +424,7 @@ public class CommandLineConverter
 		final String inputDataset = datasetInfo[1];
 		final String outputGroupName = (datasetInfo.length == 4) ? datasetInfo[3] : inputDataset;
 
-		final DatasetAttributes attributes = ConvertToLabelMultisetType.n5Reader(inputN5).getDatasetAttributes(inputDataset);
+		final DatasetAttributes attributes = N5Helpers.n5Reader(inputN5).getDatasetAttributes(inputDataset);
 
 		final int channelAxis = datasetTypeParameters.containsKey(CHANNEL_AXIS_KEY)
 				? Integer.parseInt(datasetTypeParameters.get(CHANNEL_AXIS_KEY))
@@ -440,7 +448,7 @@ public class CommandLineConverter
 				offset
 		);
 
-		final N5FSWriter writer = new N5FSWriter(outputN5);
+		final N5FSWriter writer = new N5FSWriter(outputN5, DEFAULT_BUILDER);
 		setPainteraDataType(writer, outputGroupName, CHANNEL_IDENTIFIER);
 		writer.setAttribute(outputGroupName, CHANNEL_AXIS_KEY, channelAxis);
 
@@ -473,7 +481,7 @@ public class CommandLineConverter
 		final String outputGroupName = ( datasetInfo.length == 4 ) ? datasetInfo[ 3 ] : inputDataset;
 		final String fullGroup = outputGroupName;
 
-		final N5FSWriter writer = new N5FSWriter( outputN5 );
+		final N5FSWriter writer = new N5FSWriter( outputN5, DEFAULT_BUILDER );
 		writer.createGroup( fullGroup );
 
 		setPainteraDataType( writer, fullGroup, LABEL_IDENTIFIER );
@@ -489,9 +497,9 @@ public class CommandLineConverter
 		if ( winnerTakesAll )
 		{
 			N5ConvertSpark.convert( sc,
-					() -> ConvertToLabelMultisetType.n5Reader( inputN5 ),
+					() -> N5Helpers.n5Reader( inputN5 ),
 					inputDataset,
-					() -> new N5FSWriter( outputN5 ),
+					() -> new N5FSWriter( outputN5, DEFAULT_BUILDER ),
 					outputDataset,
 					Optional.of( initialBlockSize ),
 					Optional.of( new GzipCompression() ), // TODO pass
@@ -508,7 +516,7 @@ public class CommandLineConverter
 				final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
 
 				N5LabelDownsamplerSpark.downsampleLabel( sc,
-						() -> new N5FSWriter( outputN5 ),
+						() -> new N5FSWriter( outputN5, DEFAULT_BUILDER ),
 						Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
 						newScaleDataset,
 						scales[ scaleNum ],
@@ -572,20 +580,20 @@ public class CommandLineConverter
 			writer.setAttribute(fullGroup, LABEL_BLOCK_LOOKUP_KEY, writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement.class));
 		}
 
-		final double[] res = resolution.isPresent() ? resolution.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "resolution", double[].class ),
+		final double[] res = resolution.isPresent() ? resolution.get() : N5Helpers.revertInplaceAndReturn(
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, RESOLUTION_KEY),
 				revert );
 		if ( res != null )
 		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "resolution", res );
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), RESOLUTION_KEY, res );
 		}
 
-		final double[] off = offset.isPresent() ? offset.get() : ConvertToLabelMultisetType.revertInplaceAndReturn(
-				N5Helpers.n5Reader( inputN5 ).getAttribute( inputDataset, "offset", double[].class ),
+		final double[] off = offset.isPresent() ? offset.get() : N5Helpers.revertInplaceAndReturn(
+				tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(N5Helpers.n5Reader(inputN5), inputDataset, OFFSET_KEY),
 				revert );
 		if ( off != null )
 		{
-			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), "offset", off );
+			writer.setAttribute( Paths.get( fullGroup, "data" ).toString(), OFFSET_KEY, off );
 		}
 	}
 
@@ -594,5 +602,13 @@ public class CommandLineConverter
 		final HashMap< String, String > painteraDataType = new HashMap<>();
 		painteraDataType.put( "type", type );
 		writer.setAttribute( group, "painteraData", painteraDataType );
+	}
+
+	private static double[] tryGetDoubleArrayAttributeOrLongArrayAttributeAsDoubleArray(final N5Reader reader, final String dataset, final String attribute) throws IOException {
+		try {
+			return reader.getAttribute(dataset, attribute, double[].class);
+		} catch (ClassCastException e) {
+			return LongStream.of(reader.getAttribute(dataset, attribute, long[].class)).asDoubleStream().toArray();
+		}
 	}
 }
