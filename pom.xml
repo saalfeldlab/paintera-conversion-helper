@@ -8,7 +8,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera-conversion-helper</artifactId>
-	<version>0.7.0-SNAPSHOT</version>
+	<version>0.7.0</version>
 
 	<name>Paintera-Conversion-Helper</name>
 	<description>Command line helper to convert datasets to be paintera friendly.</description>
@@ -87,7 +87,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/saalfeldlab/paintera-conversion-helper</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera-conversion-helper.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>paintera-conversion-helper-0.7.0</tag>
 		<url>https://github.com/saalfeldlab/paintera-conversion-helper</url>
 	</scm>
 
