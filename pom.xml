@@ -3,12 +3,12 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>26.0.0</version>
+		<version>27.0.1</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera-conversion-helper</artifactId>
-	<version>0.6.2-SNAPSHOT</version>
+	<version>0.7.0-SNAPSHOT</version>
 
 	<name>Paintera-Conversion-Helper</name>
 	<description>Command line helper to convert datasets to be paintera friendly.</description>
@@ -33,6 +33,7 @@
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+        <package-name>org.janelia.saalfeldlab.conversion</package-name>
 	</properties>
 
     <developers>
@@ -101,7 +102,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities-spark</artifactId>
-			<version>0.8.1</version>
+			<version>0.8.3</version>
 		</dependency>
 		<dependency>
 			<groupId>info.picocli</groupId>
@@ -109,8 +110,23 @@
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5</artifactId>
+			<version>2.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-imglib2</artifactId>
+			<version>3.3.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-label-multisets</artifactId>
+			<version>0.8.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-spark</artifactId>
-			<version>3.1.0</version>
+			<version>3.3.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>ome</groupId>
@@ -118,6 +134,11 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+        <dependency>
+            <groupId>com.pivovarit</groupId>
+            <artifactId>throwing-function</artifactId>
+            <version>1.5.0</version>
+        </dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_2.11</artifactId>
