@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.conversion;
 
+import com.pivovarit.function.ThrowingConsumer;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.converter.Converters;
@@ -23,7 +24,6 @@ import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
-import pl.touk.throwing.ThrowingConsumer;
 import scala.Tuple2;
 
 import java.io.IOException;

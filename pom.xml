@@ -102,7 +102,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities-spark</artifactId>
-			<version>0.8.1</version>
+			<version>0.8.2</version>
 		</dependency>
 		<dependency>
 			<groupId>info.picocli</groupId>
@@ -119,9 +119,9 @@
 			<version>3.3.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-label-multisets</artifactId>
-			<version>0.4.1</version>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-label-multisets</artifactId>
+			<version>0.8.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
