@@ -36,10 +36,15 @@ mvn -Denforcer.skip=true -Pfat clean package
 ## Running
 This conversion tool currently supports any number of datasets (raw or label) with a
 single (global) block size, and will output to a single N5 group in a paintera-compatible
-format. For local spark usage, run for a conda install:
+format. For local spark usage, [install throguh conda or pip](#installation), and run:
 ```
 paintera-conversion-helper [...]
 ```
+Introduced in version `0.7.0`, the
+```
+extract-to-scalar
+```
+extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details.
 
 ### Usage Example
 To convert the `raw` and `neuron_ids` datasets of [sample A of the cremi challenge](https://cremi.org/data/) into Paintera format with mipmaps on Linux, assuming that you downloaded the data into `$HOME/Downloads`, run:
