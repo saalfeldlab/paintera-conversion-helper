@@ -1,8 +1,12 @@
 package org.janelia.saalfeldlab.conversion;
 
 import com.pivovarit.function.ThrowingConsumer;
+import gnu.trove.map.TLongLongMap;
+import gnu.trove.map.hash.TLongLongHashMap;
+import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
@@ -59,6 +63,27 @@ public class ExtractHighestResolutionLabelDataset  {
             .of("dimensions", "blockSize", "compression", "dataType")
             .collect(Collectors.toSet());
 
+    private static class LookupPair implements Serializable {
+
+        public final long key;
+
+        public final long value;
+
+        private LookupPair(long key, long value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        private static class Converter implements CommandLine.ITypeConverter<LookupPair> {
+
+            @Override
+            public LookupPair convert(String s) {
+                final String[] split = s.split("=");
+                return new LookupPair(Long.parseLong(split[0]), Long.parseLong(split[1]));
+            }
+        }
+    }
+
     public static class Args implements Callable<Void>, Serializable {
 
         @CommandLine.Option(names = {"--input-container", "-i"}, required=true)
@@ -75,8 +100,17 @@ public class ExtractHighestResolutionLabelDataset  {
         @CommandLine.Option(names = {"--output-dataset", "-O"}, required=false, description = "defaults to input dataset")
         String outputDataset = null;
 
-        @CommandLine.Option(names = {"--block-size"}, required=false, split = ",", description = "Block size for output dataset. Will default to block size of input dataset if not specified.")
+        @CommandLine.Option(names = {"--block-size"}, required=false, split = ",", description = "" +
+                "Block size for output dataset. Will default to block size of input dataset if not specified.")
         int[] blockSize = null;
+
+        @CommandLine.Option(names = "--consider-fragment-segment-assignment", required = false, defaultValue = "false", description = "" +
+                "Consider fragment-segment-assignment inside Paintera dataset. Will be ignored if not a Paintera dataset")
+        Boolean considerFragmentSegmentAssignment = false;
+
+        @CommandLine.Option(names = "--additional-assignment", split = ",", required = false, converter = LookupPair.Converter.class, description = "" +
+                "Add additional lookup-values in the format `k=v'. Warning: Consistency with fragment-segment-assignment is not ensured.")
+        LookupPair[] additionalAssignments = null;
 
         @Override
         public Void call() throws IOException {
@@ -91,8 +125,12 @@ public class ExtractHighestResolutionLabelDataset  {
                         inputContainer));
             }
 
-            final SparkConf conf = new SparkConf()
-                    .setAppName(MethodHandles.lookup().lookupClass().getName());
+            final SparkConf conf = new SparkConf().setAppName(MethodHandles.lookup().lookupClass().getName());
+
+            final TLongLongMap assignment = new TLongLongHashMap();
+            if (additionalAssignments != null)
+                for (final LookupPair pair: additionalAssignments)
+                    assignment.put(pair.key, pair.value);
 
             try (final JavaSparkContext sc = new JavaSparkContext(conf)) {
                 extract(
@@ -101,8 +139,9 @@ public class ExtractHighestResolutionLabelDataset  {
                         () -> N5Helpers.n5Writer(outputContainer),
                         inputDataset,
                         outputDataset,
-                        blockSize
-                );
+                        blockSize,
+                        considerFragmentSegmentAssignment != null && considerFragmentSegmentAssignment,
+                        assignment);
             }
 
             return null;
@@ -119,8 +158,9 @@ public class ExtractHighestResolutionLabelDataset  {
             final N5WriterSupplier n5out,
             final String datasetIn,
             final String datasetOut,
-            final int[] blockSizeOut
-    ) throws IOException {
+            final int[] blockSizeOut,
+            final boolean considerFragmentSegmentAssignment,
+            final TLongLongMap assignment) throws IOException {
         ExtractHighestResolutionLabelDataset.<IN, UnsignedLongType>extract(
                 sc,
                 n5in,
@@ -129,19 +169,23 @@ public class ExtractHighestResolutionLabelDataset  {
                 datasetOut,
                 blockSizeOut,
                 (Serializable & Supplier< UnsignedLongType >) UnsignedLongType::new,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                considerFragmentSegmentAssignment,
+                assignment);
     }
 
     public static <IN extends NativeType<IN> & IntegerType<IN>, OUT extends NativeType<OUT> & IntegerType<OUT>> void extract(
-        final JavaSparkContext sc,
-        final N5ReaderSupplier n5in,
-        final N5WriterSupplier n5out,
-        final String datasetIn,
-        final String datasetOut,
-        final int[] blockSizeOut,
-        final Supplier<OUT> outputTypeSupplier,
-        final Map<String, Object> additionalAttributes
-    ) throws IOException {
+            final JavaSparkContext sc,
+            final N5ReaderSupplier n5in,
+            final N5WriterSupplier n5out,
+            final String datasetIn,
+            final String datasetOut,
+            final int[] blockSizeOut,
+            final Supplier<OUT> outputTypeSupplier,
+            final Map<String, Object> additionalAttributes,
+            final boolean considerFragmentSegmentAssignment,
+            final TLongLongMap assignment
+            ) throws IOException {
 
         if (!n5in.get().exists(datasetIn)) {
             throw new IOException(String.format("%s does not exist in container %s", datasetIn, n5in.get()));
@@ -152,7 +196,13 @@ public class ExtractHighestResolutionLabelDataset  {
                 try {
                     final Map<String, Object> updatedAdditionalEntries = new HashMap<>(additionalAttributes);
                     Optional.ofNullable(n5in.get().getAttribute(datasetIn, "maxId", long.class)).ifPresent(id -> updatedAdditionalEntries.put("maxId", id));
-                    extract(sc, n5in, n5out, datasetIn + "/data", datasetOut, blockSizeOut, outputTypeSupplier, updatedAdditionalEntries);
+                    if (considerFragmentSegmentAssignment) {
+                        final TLongLongMap loadedAssignments = readAssignments(n5in.get(), datasetIn + "/fragment-segment-assignment");
+                        loadedAssignments.putAll(assignment);
+                        assignment.clear();
+                        assignment.putAll(loadedAssignments);
+                    }
+                    extract(sc, n5in, n5out, datasetIn + "/data", datasetOut, blockSizeOut, outputTypeSupplier, updatedAdditionalEntries, considerFragmentSegmentAssignment, assignment);
                     return;
                 } catch (final NoValidDatasetException e) {
                     throw new NoValidDatasetException(n5in.get(), datasetIn);
@@ -160,7 +210,7 @@ public class ExtractHighestResolutionLabelDataset  {
             }
             else if (n5in.get().exists(datasetIn + "/s0")) {
                 try {
-                    extract(sc, n5in, n5out, datasetIn + "/s0", datasetOut, blockSizeOut, outputTypeSupplier, additionalAttributes);
+                    extract(sc, n5in, n5out, datasetIn + "/s0", datasetOut, blockSizeOut, outputTypeSupplier, additionalAttributes, considerFragmentSegmentAssignment, assignment);
                     return;
                 } catch (final NoValidDatasetException e) {
                     throw new NoValidDatasetException(n5in.get(), datasetIn);
@@ -180,6 +230,8 @@ public class ExtractHighestResolutionLabelDataset  {
                 : N5Utils.dataType(outputTypeSupplier.get());
 
         n5out.get().createDataset(datasetOut, dimensions, blockSize, dataType, new GzipCompression());
+        final long[] keys = assignment.keys();
+        final long[] values = assignment.values();
 
         // TODO automate copy of attributes if/when N5 separates attributes from dataset attributes
 //        for (Map.Entry<String, Class<?>> entry :n5in.get().listAttributes(datasetIn).entrySet()) {
@@ -243,12 +295,25 @@ public class ExtractHighestResolutionLabelDataset  {
                             N5Utils.dataType(outputTypeSupplier.get()),
                             new GzipCompression());
 
-                    final RandomAccessibleInterval<OUT> converted = Converters.convert(block, (s, t) -> t.setInteger(s.getIntegerLong()), outputTypeSupplier.get());
+                    final RandomAccessibleInterval<OUT> converted = Converters.convert(block, getAppropriateConverter(new TLongLongHashMap(keys, values)), outputTypeSupplier.get());
 
                     N5Utils.saveBlock(converted, n5out.get(), datasetOut, attributes, blockWithPosition._2());
 
                 });
 
+    }
+
+    private static <IN extends IntegerType<IN>, OUT extends IntegerType<OUT>> Converter<IN, OUT> getAppropriateConverter(final TLongLongMap map) {
+        LOG.trace("Getting converter for map {}", map);
+        if (map == null || map.isEmpty())
+            return (s, t) -> t.setInteger(s.getIntegerLong());
+        return (s, t) -> {
+            final long k = s.getIntegerLong();
+            if (map.containsKey(k))
+                t.setInteger(map.get(k));
+            else
+                t.setInteger(k);
+        };
     }
 
     private static class NoValidDatasetException extends IOException {
@@ -276,6 +341,45 @@ public class ExtractHighestResolutionLabelDataset  {
 
         }
 
+    }
+
+    private static TLongLongMap readAssignments(
+            final N5Reader container,
+            final String dataset) {
+        try {
+            RandomAccessibleInterval<UnsignedLongType> data = openDatasetSafe(container, dataset);
+            final long[] keys = new long[(int) data.dimension(0)];
+            final long[] values = new long[keys.length];
+            LOG.debug("Found {} assignments", keys.length);
+            final Cursor<UnsignedLongType> keyCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
+            final Cursor<UnsignedLongType> valueCursor = Views.flatIterable(Views.hyperSlice(data, 1, 1L)).cursor();
+            for (int i = 0; i < keys.length; ++i) {
+                keys[i] = keyCursor.next().getIntegerLong();
+                values[i] = valueCursor.next().getIntegerLong();
+            }
+            return new TLongLongHashMap(keys, values);
+        } catch (IOException e) {
+            LOG.debug("Exception while trying to return initial lut from N5", e);
+            LOG.info("Unable to read initial lut from {} in {} -- returning empty map", dataset, container);
+            return new TLongLongHashMap();
+        }
+    }
+
+    private static RandomAccessibleInterval<UnsignedLongType> openDatasetSafe(
+            final N5Reader reader,
+            final String dataset
+    ) throws IOException {
+        return DataType.UINT64.equals(reader.getDatasetAttributes(dataset).getDataType())
+                ? N5Utils.open(reader, dataset)
+                : openAnyIntegerTypeAsUnsignedLongType(reader, dataset);
+    }
+
+    private static <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<UnsignedLongType> openAnyIntegerTypeAsUnsignedLongType(
+            final N5Reader reader,
+            final String dataset
+    ) throws IOException {
+        final RandomAccessibleInterval<T> img = N5Utils.open(reader, dataset);
+        return Converters.convert(img, (s, t) -> t.setInteger(s.getIntegerLong()), new UnsignedLongType());
     }
 
 }

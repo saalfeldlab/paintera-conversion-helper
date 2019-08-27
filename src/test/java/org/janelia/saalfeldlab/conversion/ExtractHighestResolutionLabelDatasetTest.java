@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.conversion;
 
+import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converters;
@@ -102,7 +103,9 @@ public class ExtractHighestResolutionLabelDatasetTest {
                             getWriter(outputContainerPath.toAbsolutePath().toString()),
                             inputDatasets[i],
                             String.format("%d", i),
-                            new int[] {4, 2, 3});
+                            new int[] {4, 2, 3},
+                            false,
+                            new TLongLongHashMap());
                     Assert.assertArrayEquals(resolution, n5out.getAttribute(String.format("%d", i), "resolution", double[].class), 0.0);
                     Assert.assertArrayEquals(offset, n5out.getAttribute(String.format("%d", i), "offset", double[].class), 0.0);
 
