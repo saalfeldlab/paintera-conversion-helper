@@ -13,6 +13,11 @@ If necessary, you can install `openjdk` and `maven` from `conda-forge`:
 conda install -c conda-forge maven openjdk
 ```
 
+Alternatively, `paintera-conversion-helper` can be installed from PyPI through pip:
+```
+pip install paintera-conversion-helper
+```
+
 
 ## Compile
 To compile the conversion helper into a jar, simply run
