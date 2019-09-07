@@ -98,11 +98,14 @@ public class CommandLineConverter
 		@Option( names = { "--offset" }, description = "Offset in world coordinates.", split = "," )
 		private double[] offset;
 
-		@Option( names = {"--label-block-lookup-backend-n5" }, paramLabel = "BLOCK_SIZE", description = "Use n5 as backend for label block lookup with specified BLOCK_SIZE." )
-		private Integer labelBlockLookupN5BlockSize = null;
+		@Option( names = { "--label-block-lookup-backend-n5" }, paramLabel = "BLOCK_SIZE", description = "Block size for n5 backend for label block lookup, defaults to 10000.", defaultValue = "10000" )
+		private Integer labelBlockLookupN5BlockSize = 10000;
 
 		@Option(names = {"--max-num-entries", "-m"}, arity = "1..*", description = "max number of entries for each label multiset at each scale. Pick lower number for higher scale levels")
 		private int[] maxNumEntries;
+
+		@Option( names =  "--use-file-based-label-block-lookup", description = "Use label-block-lookup with a single file instead of a sparse map backed by N5. Recommended only for small datasets" )
+		private boolean useFileBasedLabelBlockLookup = false;
 	}
 
 	public static void main( final String[] args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException {
@@ -171,10 +174,15 @@ public class CommandLineConverter
 		for ( int level = 0; level < downsamplingBlockSizes.length; ++level )
 			LOG.debug("Downsampling block size for level {}: {}", level, downsamplingBlockSizes[level]);
 
-		final Optional<double[]> resolution = Optional.ofNullable(clp.resolution);
-		final Optional<double[]> offset = Optional.ofNullable(clp.offset);
+		final Optional< double[] > resolution = Optional.ofNullable( clp.resolution );
+		final Optional< double[] > offset = Optional.ofNullable( clp.offset );
 
 		final SparkConf conf = new SparkConf().setAppName(MethodHandles.lookup().lookupClass().getName());
+
+		// do not use n5 if file based label block lookup is requested
+		final Optional< Integer > labelBlockLookupN5BlockSize = Optional
+				.ofNullable( clp.labelBlockLookupN5BlockSize )
+				.filter( i -> !clp.useFileBasedLabelBlockLookup );
 
 		try(final JavaSparkContext sc = new JavaSparkContext(conf)) {
 
@@ -192,8 +200,9 @@ public class CommandLineConverter
 						clp.outputN5,
 						clp.revert,
 						clp.winnerTakesAll,
-						Optional.ofNullable(clp.labelBlockLookupN5BlockSize),
-						resolution, offset);
+						labelBlockLookupN5BlockSize,
+						resolution,
+						offset);
 			} else {
 				for (int i = 0; i < clp.datasets.length; ++i) {
 					final String[] datasetInfo = clp.datasets[i].split(",");
@@ -212,7 +221,19 @@ public class CommandLineConverter
 							break;
 						case LABEL_IDENTIFIER:
 							LOG.info(String.format("Handling dataset #%d as LABEL data", i));
-							handleLabelDataset(sc, datasetInfo, blockSize, scales, downsamplingBlockSizes, maxNumEntriesArray, clp.outputN5, clp.revert, clp.winnerTakesAll, Optional.ofNullable(clp.labelBlockLookupN5BlockSize), resolution, offset);
+							handleLabelDataset(
+									sc,
+									datasetInfo,
+									blockSize,
+									scales,
+									downsamplingBlockSizes,
+									maxNumEntriesArray,
+									clp.outputN5,
+									clp.revert,
+									clp.winnerTakesAll,
+									labelBlockLookupN5BlockSize,
+									resolution,
+									offset);
 							break;
 						case CHANNEL_IDENTIFIER:
 							LOG.info(String.format("Handling dataset #%d as CHANNEL data", i));
@@ -306,7 +327,21 @@ public class CommandLineConverter
 			}
 			else
 			{
-				convertAll( n5Container, fullSubGroupName, sc, n5Reader, blockSize, downsamplingBlockSizes, maxNumEntriesArray, scales, outputN5, revert, winnerTakesAll, labelBlockLookupN5BlockSize, resolution, offset );
+				convertAll(
+						n5Container,
+						fullSubGroupName,
+						sc,
+						n5Reader,
+						blockSize,
+						downsamplingBlockSizes,
+						maxNumEntriesArray,
+						scales,
+						outputN5,
+						revert,
+						winnerTakesAll,
+						labelBlockLookupN5BlockSize,
+						resolution,
+						offset );
 			}
 		}
 	}
