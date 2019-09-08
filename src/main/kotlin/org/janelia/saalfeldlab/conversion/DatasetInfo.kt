@@ -17,10 +17,10 @@ data class DatasetInfo(
         get() {
             val attrs = inputContainer.n5Reader().getDatasetAttributes(inputDataset)
             return if (attrs.numDimensions == 4)
-                "channel"
+                CHANNEL_IDENTIFIER
             else when (inputContainer.n5Reader().getDatasetAttributes(inputDataset).dataType) {
-                DataType.UINT64, DataType.INT64, DataType.UINT32 -> "label"
-                else -> "raw"
+                DataType.UINT64, DataType.INT64, DataType.UINT32 -> LABEL_IDENTIFIER
+                else -> RAW_IDENTIFIER
             }
         }
 
