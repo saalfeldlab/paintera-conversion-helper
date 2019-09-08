@@ -40,6 +40,7 @@
         <kotlin.version>1.3.50</kotlin.version>
 
         <picocli.version>4.0.3</picocli.version>
+        <logback.version>1.2.3</logback.version>
     </properties>
 
     <developers>
@@ -156,14 +157,15 @@
             <artifactId>spark-core_2.11</artifactId>
         </dependency>
 
-<!--      -->
+<!--    logging-->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slfj4-simple</artifactId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
         </dependency>
 
         <!--	test-->
