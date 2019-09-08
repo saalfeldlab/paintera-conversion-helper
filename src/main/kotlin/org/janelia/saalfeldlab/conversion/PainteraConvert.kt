@@ -46,10 +46,11 @@ class PainteraConvert {
                             outputContainer = args.outputContainer,
                             outputGroup = dataset.targetDataset)
                     try {
+                        info.ensureInput()
+                        info.ensureOutput(args.overwriteExisting)
                         if (info in datasets)
                             throw ConversionException("Dataset specified multiple times: `$info'")
-                        val converter = DatasetConverter[info, dataset.parameters.type!!] ?: throw ConversionException("Do not know how to convert dataset of type `${dataset.parameters.type}': `$info'")
-                        converter.ensureInput()
+                        val converter = DatasetConverter[info, dataset.parameters.type ?: info.type] ?: throw ConversionException("Do not know how to convert dataset of type `${dataset.parameters.type}': `$info'")
                         datasets[info] = Pair(converter, dataset.parameters)
                     } catch (e: ConversionException) {
                         exceptions += e
@@ -109,18 +110,18 @@ class SpatialArrayConverter : CommandLine.ITypeConverter<DoubleArray> {
 
 }
 
-class GlobalParameters {
+class GlobalParameters : Callable<Unit> {
     @CommandLine.Option(names = ["--block-size"], defaultValue = "64,64,64", split = ",")
-    lateinit var blockSize: IntArray
+    private lateinit var _blockSize: IntArray
 
     @CommandLine.Option(
             names =  ["--scale"],
             arity = "1..*", description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
             converter = [SpatialIntArrayConverter::class])
-    lateinit var scales: Array<IntArray>
+    private lateinit var _scales: Array<IntArray>
 
     @CommandLine.Option(names = ["--downsample-block-sizes"], arity = "1..*")
-    lateinit var downsamplingBlockSizes: Array<IntArray>
+    private lateinit var _downsamplingBlockSizes: Array<IntArray>
 
     @CommandLine.Option(names = ["--revert-array-attributes"], defaultValue = "false")
     var revertArrayAttributes: Boolean = false
@@ -131,9 +132,25 @@ class GlobalParameters {
     @CommandLine.Option(names = ["--offset"], converter = [SpatialArrayConverter::class])
     var offset: DoubleArray? = null
 
-    fun ensureInitialized() {
-        if (!this::scales.isInitialized) scales = arrayOf()
-        if (!this::downsamplingBlockSizes.isInitialized) downsamplingBlockSizes = arrayOf()
+    val blockSize: IntArray
+        get() = _blockSize
+
+    val scales: Array<IntArray>
+        get() = _scales
+
+    val numScales: Int
+        get() = scales.size
+
+    val downsamplingBlockSizes
+        get() = fillUpTo(if (_downsamplingBlockSizes.isEmpty()) arrayOf(blockSize) else _downsamplingBlockSizes, numScales)
+
+    override fun call() {
+        ensureInitialized()
+    }
+
+    private fun ensureInitialized() {
+        if (!this::_scales.isInitialized) _scales = arrayOf()
+        if (!this::_downsamplingBlockSizes.isInitialized) _downsamplingBlockSizes = arrayOf()
     }
 
 }
@@ -165,7 +182,7 @@ class PainteraConvertParameters : Callable<Unit> {
         get() = _outputContainer
 
     override fun call() {
-        parameters.ensureInitialized()
+        parameters.call()
         if (!versionOrHelpRequested)
             containers.forEach { it.parameters.initGlobalParameters(parameters); it.call() }
     }
@@ -252,8 +269,11 @@ class ContainerSpecificParameters {
     val scales: Array<IntArray>
         get() = _scales ?: globalParameters.scales
 
+    val numScales: Int
+        get() = scales.size
+
     val downsamplingBlockSizes: Array<IntArray>
-        get() = _downsamplingBlockSizes ?: globalParameters.downsamplingBlockSizes
+        get() = fillUpTo((_downsamplingBlockSizes ?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() } ?: arrayOf(blockSize), numScales)
 
     val revertArrayAttributes: Boolean
         get() = _revertArrayAttributes ?: globalParameters.revertArrayAttributes
@@ -295,7 +315,7 @@ class DatasetSpecificParameters {
     @CommandLine.Option(names = ["--dataset-offset"])
     private var _offset: DoubleArray? = null
 
-    @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = true)
+    @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false)
     private var _type: String? = null
 
     val blockSize: IntArray
@@ -304,8 +324,11 @@ class DatasetSpecificParameters {
     val scales: Array<IntArray>
         get() = _scales ?: containerParameters.scales
 
+    val numScales: Int
+        get() = scales.size
+
     val downsamplingBlockSizes: Array<IntArray>
-        get() = _downsamplingBlockSizes ?: containerParameters.downsamplingBlockSizes
+        get() = fillUpTo((_downsamplingBlockSizes ?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() } ?: arrayOf(blockSize), numScales)
 
     val revertArrayAttributes: Boolean
         get() = _revertArrayAttributes ?: containerParameters.revertArrayAttributes
@@ -363,3 +386,12 @@ const val TYPE_KEY = "type"
 val TYPE_OPTIONS = listOf("raw")
 
 class TypeOptions : ArrayList<String>(TYPE_OPTIONS.map { it })
+
+fun <T> fillUpTo(array: Array<T>, size: Int): Array<T> {
+    return if (array.size == size)
+        array
+    else if (array.size < size)
+        array + List(size - array.size) { array[size - 1] }
+    else
+        array.copyOfRange(0, size)
+}

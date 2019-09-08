@@ -114,7 +114,7 @@ class DatasetConverterRaw(info: DatasetInfo) : DatasetConverter(info) {
 
                 N5DownsamplerSpark.downsample<T>(sc,
                         { N5FSWriter(info.outputContainer, DEFAULT_BUILDER) },
-                        "$dataGroup/s${scaleNum+1}",
+                        "$dataGroup/s$scaleNum",
                         newScaleDataset,
                         scales[scaleNum],
                         downsamplingBlockSizes[scaleNum])
@@ -133,7 +133,7 @@ class DatasetConverterRaw(info: DatasetInfo) : DatasetConverter(info) {
 
             val off = offset
                     ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, OFFSET_KEY)
-                    ?: DoubleArray(3) { 1.0 }
+                    ?: DoubleArray(3) { 0.0 }
             writer.setAttribute("${info.outputGroup}/data", OFFSET_KEY, off)
         }
     }
