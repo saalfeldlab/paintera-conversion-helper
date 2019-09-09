@@ -79,60 +79,38 @@ class PainteraConvert {
 
 }
 
-class ArrayOfSpatialIntArrayConverter : CommandLine.ITypeConverter<Array<IntArray>> {
-    override fun convert(value: String?): Array<IntArray>? {
-        return value
-                ?.split(" ")
-                ?.map { singleArrayConverter.convert(it) ?: throw Exception() }
-                ?.toTypedArray()
-    }
-
-    private val singleArrayConverter = SpatialIntArrayConverter()
-
-}
-
-class SpatialIntArrayConverter : CommandLine.ITypeConverter<IntArray> {
-    override fun convert(value: String?): IntArray? {
-        return value
-                ?.split(",")
-                ?.map { it.toInt() }
-                ?.let { if (it.size == 3) it.toIntArray() else if (it.size == 1) IntArray(3) { _ -> it[0] } else throw Exception() }
-    }
-}
-
-class SpatialArrayConverter : CommandLine.ITypeConverter<DoubleArray> {
-    override fun convert(value: String?): DoubleArray? {
-        return value
-                ?.split(",")
-                ?.map { it.toDouble() }
-                ?.let { if (it.size == 3) it.toDoubleArray() else if (it.size == 1) DoubleArray(3) { _ -> it[0] } else throw Exception() }
-    }
-
-}
-
 class GlobalParameters : Callable<Unit> {
     // TODO use custom class instead of IntArray
-    @CommandLine.Option(names = ["--block-size"], paramLabel = "X,Y,Z", defaultValue = "64,64,64", split = ",")
-    private lateinit var _blockSize: IntArray
+    @CommandLine.Option(
+            names = ["--block-size"],
+            paramLabel = SpatialIntArray.PARAM_LABEL,
+            defaultValue = "64,64,64",
+            converter = [SpatialIntArray.Converter::class])
+    private lateinit var _blockSize: SpatialIntArray
 
     @CommandLine.Option(
             names =  ["--scale"],
-            arity = "1..*", description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
-            converter = [SpatialIntArrayConverter::class],
-            paramLabel = "X,Y,Z|U")
-    private lateinit var _scales: Array<IntArray>
+            arity = "1..*",
+            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+            converter = [SpatialIntArray.Converter::class],
+            paramLabel = SpatialIntArray.PARAM_LABEL)
+    private lateinit var _scales: Array<SpatialIntArray>
 
-    @CommandLine.Option(names = ["--downsample-block-sizes"], arity = "1..*", paramLabel = "X,Y,Z")
-    private lateinit var _downsamplingBlockSizes: Array<IntArray>
+    @CommandLine.Option(
+            names = ["--downsample-block-sizes"],
+            arity = "1..*",
+            converter = [SpatialIntArray.Converter::class],
+            paramLabel = SpatialIntArray.PARAM_LABEL)
+    private lateinit var _downsamplingBlockSizes: Array<SpatialIntArray>
 
     @CommandLine.Option(names = ["--revert-array-attributes"], defaultValue = "false")
     var revertArrayAttributes: Boolean = false
 
-    @CommandLine.Option(names = ["--resolution"], converter = [SpatialArrayConverter::class], paramLabel = "X,Y,Z")
-    var resolution: DoubleArray? = null
+    @CommandLine.Option(names = ["--resolution"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    var resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--offset"], converter = [SpatialArrayConverter::class], paramLabel = "X,Y,Z")
-    var offset: DoubleArray? = null
+    @CommandLine.Option(names = ["--offset"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    var offset: SpatialDoubleArray? = null
 
     @CommandLine.Option(names = ["--max-num-entries", "-m"], arity = "1..*", paramLabel = "N")
     private var _maxNumEntries: IntArray? = null
@@ -145,10 +123,10 @@ class GlobalParameters : Callable<Unit> {
     var winnerTakesAllDownsampling: Boolean = false
         private set
 
-    val blockSize: IntArray
+    val blockSize: SpatialIntArray
         get() = _blockSize
 
-    val scales: Array<IntArray>
+    val scales: Array<SpatialIntArray>
         get() = _scales
 
     val numScales: Int
@@ -311,28 +289,36 @@ class ContainerSpecificParameters {
         this.globalParameters = globalParameters
     }
 
-    @CommandLine.Option(names = ["--container-block-size"], paramLabel = "X,Y,Z")
-    private var _blockSize: IntArray? = null
+    @CommandLine.Option(
+            names = ["--container-block-size"],
+            paramLabel = SpatialIntArray.PARAM_LABEL,
+            defaultValue = "64,64,64",
+            converter = [SpatialIntArray.Converter::class])
+    private var _blockSize: SpatialIntArray? = null
 
     @CommandLine.Option(
             names =  ["--container-scale"],
             arity = "1..*",
             description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
-            converter = [SpatialIntArrayConverter::class],
-            paramLabel = "X,Y,Z|U")
-    private var _scales: Array<IntArray>? = null
+            converter = [SpatialIntArray.Converter::class],
+            paramLabel = SpatialIntArray.PARAM_LABEL)
+    private var _scales: Array<SpatialIntArray>? = null
 
-    @CommandLine.Option(names = ["--container-downsample-block-sizes"], arity = "1..*", paramLabel = "X,Y,Z|U")
-    private var _downsamplingBlockSizes: Array<IntArray>? = null
+    @CommandLine.Option(
+            names = ["--container-downsample-block-sizes"],
+            arity = "1..*",
+            converter = [SpatialIntArray.Converter::class],
+            paramLabel = SpatialIntArray.PARAM_LABEL)
+    private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
     @CommandLine.Option(names = ["--container-revert-array-attributes"])
     private var _revertArrayAttributes: Boolean? = null
 
-    @CommandLine.Option(names = ["--container-resolution"], paramLabel = "X,Y,Z")
-    private var _resolution: DoubleArray? = null
+    @CommandLine.Option(names = ["--container-resolution"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    private var _resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--container-offset"], paramLabel = "X,Y,Z")
-    private var _offset: DoubleArray? = null
+    @CommandLine.Option(names = ["--container-offset"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    private var _offset: SpatialDoubleArray? = null
 
     @CommandLine.Option(names = ["--container-max-num-entries"], arity = "1..*", paramLabel = "N")
     private var _maxNumEntries: IntArray? = null
@@ -343,25 +329,25 @@ class ContainerSpecificParameters {
     @CommandLine.Option(names = ["--container-winner-takes-all-downsampling"])
     private var _winnerTakesAllDownsampling: Boolean? = null
 
-    val blockSize: IntArray
+    val blockSize: SpatialIntArray
         get() = _blockSize ?: globalParameters.blockSize
 
-    val scales: Array<IntArray>
+    val scales: Array<SpatialIntArray>
         get() = _scales ?: globalParameters.scales
 
     val numScales: Int
         get() = scales.size
 
-    val downsamplingBlockSizes: Array<IntArray>
+    val downsamplingBlockSizes: Array<SpatialIntArray>
         get() = fillUpTo((_downsamplingBlockSizes ?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() } ?: arrayOf(blockSize), numScales)
 
     val revertArrayAttributes: Boolean
         get() = _revertArrayAttributes ?: globalParameters.revertArrayAttributes
 
-    val resolution: DoubleArray?
+    val resolution: SpatialDoubleArray?
         get() = _resolution ?: globalParameters.resolution
 
-    val offset: DoubleArray?
+    val offset: SpatialDoubleArray?
         get() = _offset ?: globalParameters.offset
 
     val maxNumEntries: IntArray
@@ -386,30 +372,38 @@ class DatasetSpecificParameters {
         this.containerParameters = containerParameters
     }
 
-    @CommandLine.Option(names = ["--dataset-block-size"], paramLabel = "X,Y,Z")
-    private var _blockSize: IntArray? = null
+    @CommandLine.Option(
+            names = ["--dataset-block-size"],
+            paramLabel = SpatialIntArray.PARAM_LABEL,
+            converter = [SpatialIntArray.Converter::class])
+    private var _blockSize: SpatialIntArray? = null
 
     @CommandLine.Option(
             names =  ["--dataset-scale"],
             arity = "1..*",
             description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
-            converter = [SpatialIntArrayConverter::class],
-            paramLabel = "X,Y,Z|U")
-    private var _scales: Array<IntArray>? = null
+            converter = [SpatialIntArray.Converter::class],
+            paramLabel = SpatialIntArray.PARAM_LABEL)
+    private var _scales: Array<SpatialIntArray>? = null
 
-    @CommandLine.Option(names = ["--dataset-downsample-block-sizes"], arity = "1..*", paramLabel = "X,Y,Z")
-    private var _downsamplingBlockSizes: Array<IntArray>? = null
+    @CommandLine.Option(
+            names = ["--dataset-downsample-block-sizes"],
+            arity = "1..*",
+            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+            converter = [SpatialIntArray.Converter::class],
+            paramLabel = SpatialIntArray.PARAM_LABEL)
+    private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
     @CommandLine.Option(names = ["--dataset-revert-array-attributes"])
     private var _revertArrayAttributes: Boolean? = null
 
-    @CommandLine.Option(names = ["--dataset-resolution"], paramLabel = "X,Y,Z")
-    private var _resolution: DoubleArray? = null
+    @CommandLine.Option(names = ["--dataset-resolution"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    private var _resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--dataset-offset"], paramLabel = "X,Y,Z")
-    private var _offset: DoubleArray? = null
+    @CommandLine.Option(names = ["--dataset-offset"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    private var _offset: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false, paramLabel = "X,Y,Z")
+    @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false, paramLabel = "TYPE")
     private var _type: String? = null
 
     @CommandLine.Option(names = ["--dataset-max-num-entries"], arity = "1..*", paramLabel = "N")
@@ -421,25 +415,25 @@ class DatasetSpecificParameters {
     @CommandLine.Option(names = ["--dataset-winner-takes-all-downsampling"])
     private var _winnerTakesAllDownsampling: Boolean? = null
 
-    val blockSize: IntArray
+    val blockSize: SpatialIntArray
         get() = _blockSize ?: containerParameters.blockSize
 
-    val scales: Array<IntArray>
+    val scales: Array<SpatialIntArray>
         get() = _scales ?: containerParameters.scales
 
     val numScales: Int
         get() = scales.size
 
-    val downsamplingBlockSizes: Array<IntArray>
+    val downsamplingBlockSizes: Array<SpatialIntArray>
         get() = fillUpTo((_downsamplingBlockSizes ?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() } ?: arrayOf(blockSize), numScales)
 
     val revertArrayAttributes: Boolean
         get() = _revertArrayAttributes ?: containerParameters.revertArrayAttributes
 
-    val resolution: DoubleArray?
+    val resolution: SpatialDoubleArray?
         get() = _resolution ?: containerParameters.resolution
 
-    val offset: DoubleArray?
+    val offset: SpatialDoubleArray?
         get() = _offset ?: containerParameters.offset
 
     val type: String?
@@ -457,6 +451,54 @@ class DatasetSpecificParameters {
 //    @CommandLine.Option(names = ["--overwrite-existing"])
 //    var overwriteExisiting: Boolean? = null
 
+}
+
+class SpatialIntArray (private val x: Int, private val y: Int, private val z: Int) {
+
+    constructor(u: Int): this(u, u, u)
+
+    val array: IntArray
+        get() = intArrayOf(x, y, z)
+
+    class Converter : CommandLine.ITypeConverter<SpatialIntArray> {
+        override fun convert(value: String): SpatialIntArray {
+            return value.split(",").map { it.toInt() }.let { array ->
+                when (array.size) {
+                    1 -> SpatialIntArray(array[0])
+                    3 -> SpatialIntArray(array[0], array[1], array[2])
+                    else -> throw Exception("Spatial data must be provided as either single integer or three comma-separated integers but got $value")
+                }
+            }
+        }
+    }
+
+    companion object {
+        const val PARAM_LABEL = "X,Y,Z|U"
+    }
+}
+
+class SpatialDoubleArray (private val x: Double, private val y: Double, private val z: Double) {
+
+    constructor(u: Double): this(u, u, u)
+
+    val array: DoubleArray
+        get() = doubleArrayOf(x, y, z)
+
+    class Converter : CommandLine.ITypeConverter<SpatialDoubleArray> {
+        override fun convert(value: String): SpatialDoubleArray {
+            return value.split(",").map { it.toDouble() }.let { array ->
+                when (array.size) {
+                    1 -> SpatialDoubleArray(array[0])
+                    3 -> SpatialDoubleArray(array[0], array[1], array[2])
+                    else -> throw Exception("Spatial data must be provided as either single floating point value or three comma-separated floating point values but got $value")
+                }
+            }
+        }
+    }
+
+    companion object {
+        const val PARAM_LABEL = "X,Y,Z|U"
+    }
 }
 
 

@@ -12,13 +12,13 @@ abstract class DatasetConverter(val info: DatasetInfo) {
         convertSpecific(sc, parameters, overwriteExisiting)
 
 
-        val downsamplingFactor = DoubleArray(parameters.blockSize.size) { 1.0 }
+        val downsamplingFactor = DoubleArray(parameters.blockSize.array.size) { 1.0 }
         val writer = info.outputContainer.n5Writer(DEFAULT_BUILDER)
         writer.setAttribute(scaleGroup(info.outputGroup, 0), DOWNSAMPLING_FACTORS, downsamplingFactor)
 
         for ((scaleNum, scale) in parameters.scales.withIndex()) {
             for (i in downsamplingFactor.indices)
-                downsamplingFactor[i] *= scale[i].toDouble()
+                downsamplingFactor[i] *= scale.array[i].toDouble()
             writer.setAttribute(scaleGroup(info.outputGroup, scaleNum + 1), DOWNSAMPLING_FACTORS, downsamplingFactor)
 
         }

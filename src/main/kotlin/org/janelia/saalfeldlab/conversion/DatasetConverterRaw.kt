@@ -2,18 +2,10 @@ package org.janelia.saalfeldlab.conversion
 
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
-import net.imglib2.type.numeric.integer.ByteType
-import net.imglib2.type.numeric.integer.IntType
-import net.imglib2.type.numeric.integer.LongType
-import net.imglib2.type.numeric.integer.ShortType
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.integer.UnsignedLongType
-import net.imglib2.type.numeric.integer.UnsignedShortType
+import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
-import org.janelia.saalfeldlab.label.spark.N5Helpers
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5FSWriter
@@ -22,9 +14,8 @@ import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.Optional
+import java.util.*
 
 class DatasetConverterRaw(info: DatasetInfo) : DatasetConverter(info) {
     override fun convertSpecific(
@@ -35,9 +26,9 @@ class DatasetConverterRaw(info: DatasetInfo) : DatasetConverter(info) {
         handleRawDatasetInferType(
                 sc,
                 info,
-                parameters.blockSize,
-                parameters.scales,
-                parameters.downsamplingBlockSizes,
+                parameters.blockSize.array,
+                parameters.scales.map { it.array }.toTypedArray(),
+                parameters.downsamplingBlockSizes.map { it.array }.toTypedArray(),
                 overwriteExisiting)
     }
 

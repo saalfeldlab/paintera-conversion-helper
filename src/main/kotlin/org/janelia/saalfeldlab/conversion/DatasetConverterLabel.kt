@@ -40,9 +40,9 @@ class DatasetConverterLabel(info: DatasetInfo) : DatasetConverter(info) {
         handleLabelDatasetInferType(
                 sc,
                 info,
-                parameters.blockSize,
-                parameters.scales,
-                parameters.downsamplingBlockSizes,
+                parameters.blockSize.array,
+                parameters.scales.map { it.array }.toTypedArray(),
+                parameters.downsamplingBlockSizes.map { it.array }.toTypedArray(),
                 parameters.maxNumEntries,
                 parameters.revertArrayAttributes,
                 parameters.winnerTakesAllDownsampling,

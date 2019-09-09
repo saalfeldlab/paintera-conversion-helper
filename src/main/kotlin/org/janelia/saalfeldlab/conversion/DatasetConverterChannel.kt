@@ -2,14 +2,7 @@ package org.janelia.saalfeldlab.conversion
 
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
-import net.imglib2.type.numeric.integer.ByteType
-import net.imglib2.type.numeric.integer.IntType
-import net.imglib2.type.numeric.integer.LongType
-import net.imglib2.type.numeric.integer.ShortType
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.integer.UnsignedLongType
-import net.imglib2.type.numeric.integer.UnsignedShortType
+import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
@@ -19,9 +12,9 @@ import java.io.IOException
 class DatasetConverterChannel(info: DatasetInfo) : DatasetConverter(info) {
 
     override fun convertSpecific(sc: JavaSparkContext, parameters: DatasetSpecificParameters, overwriteExisiting: Boolean) {
-        val blockSize = parameters.blockSize
-        val scales = parameters.scales
-        val downsamplingBlockSizes = parameters.downsamplingBlockSizes
+        val blockSize = parameters.blockSize.array
+        val scales = parameters.scales.map { it.array }.toTypedArray()
+        val downsamplingBlockSizes = parameters.downsamplingBlockSizes.map { it.array }.toTypedArray()
         when(info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
             DataType.INT8 -> handleChannelDataset<ByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
             DataType.UINT8 -> handleChannelDataset<UnsignedByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
