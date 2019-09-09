@@ -75,7 +75,7 @@ fun <T> handleRawDataset(
     writer.createGroup(dataGroup)
     writer.setAttribute(dataGroup, "multiScale", true)
 
-    val outputDataset = Paths.get(dataGroup, "s0").toString()
+    val outputDataset = scaleGroup(info.outputGroup, 0).also { writer.createGroup(it) }
     N5ConvertSpark.convert<T, T>(sc,
             N5ReaderSupplier { info.inputContainer.n5Reader() },
             info.inputDataset,
