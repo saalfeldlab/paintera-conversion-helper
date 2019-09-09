@@ -26,7 +26,7 @@ import java.nio.file.Paths
 import java.util.Optional
 
 class DatasetConverterRaw(info: DatasetInfo) : DatasetConverter(info) {
-    override fun convert(
+    override fun convertSpecific(
             sc: JavaSparkContext,
             parameters: DatasetSpecificParameters,
             overwriteExisiting: Boolean
@@ -37,104 +37,78 @@ class DatasetConverterRaw(info: DatasetInfo) : DatasetConverter(info) {
                 parameters.blockSize,
                 parameters.scales,
                 parameters.downsamplingBlockSizes,
-                parameters.revertArrayAttributes ?: false,
-                parameters.resolution,
-                parameters.offset,
                 overwriteExisiting)
     }
 
     override val type: String
         get() = "raw"
+}
 
-    companion object {
+@Throws(IOException::class)
+private fun handleRawDatasetInferType(
+        sc: JavaSparkContext,
+        info: DatasetInfo,
+        blockSize: IntArray,
+        scales: Array<IntArray>,
+        downsamplingBlockSizes: Array<IntArray>,
+        overwriteExisiting: Boolean = false) {
+    when(info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
+        DataType.INT8 -> handleRawDataset<ByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.UINT8 -> handleRawDataset<UnsignedByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.INT16 -> handleRawDataset<ShortType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.UINT16 -> handleRawDataset<UnsignedShortType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.INT32 -> handleRawDataset<IntType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.UINT32 -> handleRawDataset<UnsignedIntType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.INT64 -> handleRawDataset<LongType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.UINT64 -> handleRawDataset<UnsignedLongType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.FLOAT32 -> handleRawDataset<FloatType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        DataType.FLOAT64 -> handleRawDataset<DoubleType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
+        null -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
+    }
+}
 
-        @Throws(IOException::class)
-        private fun handleRawDatasetInferType(
-                sc: JavaSparkContext,
-                info: DatasetInfo,
-                blockSize: IntArray,
-                scales: Array<IntArray>,
-                downsamplingBlockSizes: Array<IntArray>,
-                revertArrayAttributes: Boolean,
-                resolution: DoubleArray? = null,
-                offset: DoubleArray? = null,
-                overwriteExisiting: Boolean = false) {
-            when(info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
-                DataType.INT8 -> handleRawDataset<ByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.UINT8 -> handleRawDataset<UnsignedByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.INT16 -> handleRawDataset<ShortType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.UINT16 -> handleRawDataset<UnsignedShortType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.INT32 -> handleRawDataset<IntType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.UINT32 -> handleRawDataset<UnsignedIntType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.INT64 -> handleRawDataset<LongType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.UINT64 -> handleRawDataset<UnsignedLongType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.FLOAT32 -> handleRawDataset<FloatType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                DataType.FLOAT64 -> handleRawDataset<DoubleType>(sc, info, blockSize, scales, downsamplingBlockSizes, revertArrayAttributes, resolution, offset, overwriteExisiting)
-                null -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
-            }
-        }
+@Throws(IOException::class)
+fun <T> handleRawDataset(
+        sc: JavaSparkContext,
+        info: DatasetInfo,
+        blockSize: IntArray,
+        scales: Array<IntArray>,
+        downsamplingBlockSizes: Array<IntArray>,
+        overwriteExisiting: Boolean = false) where T : NativeType<T>, T : RealType<T> {
 
-        @Throws(IOException::class)
-        private fun <T> handleRawDataset(
-                sc: JavaSparkContext,
-                info: DatasetInfo,
-                blockSize: IntArray,
-                scales: Array<IntArray>,
-                downsamplingBlockSizes: Array<IntArray>,
-                revertArrayAttributes: Boolean,
-                resolution: DoubleArray?,
-                offset: DoubleArray?,
-                overwriteExisiting: Boolean = false) where T : NativeType<T>, T : RealType<T> {
+    val writer = info.outputContainer.n5Writer(DEFAULT_BUILDER)
+    writer.createGroup(info.outputGroup)
 
-            val writer = info.outputContainer.n5Writer(DEFAULT_BUILDER)
-            writer.createGroup(info.outputGroup)
+    val dataGroup = Paths.get(info.outputGroup, "data").toString()
+    writer.createGroup(dataGroup)
+    writer.setAttribute(dataGroup, "multiScale", true)
 
-            setPainteraDataType(writer, info.outputGroup, RAW_IDENTIFIER)
+    val outputDataset = Paths.get(dataGroup, "s0").toString()
+    N5ConvertSpark.convert<T, T>(sc,
+            N5ReaderSupplier { info.inputContainer.n5Reader() },
+            info.inputDataset,
+            N5WriterSupplier { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
+            outputDataset,
+            Optional.of(blockSize),
+            Optional.of(GzipCompression()), // TODO pass compression as parameter
+            Optional.empty(),
+            Optional.empty(),
+            overwriteExisiting)
 
-            val dataGroup = Paths.get(info.outputGroup, "data").toString()
-            writer.createGroup(dataGroup)
-            writer.setAttribute(dataGroup, "multiScale", true)
+    val downsamplingFactor = DoubleArray(blockSize.size) { 1.0 }
 
-            val outputDataset = Paths.get(dataGroup, "s0").toString()
-            N5ConvertSpark.convert<T, T>(sc,
-                    N5ReaderSupplier { info.inputContainer.n5Reader() },
-                    info.inputDataset,
-                    N5WriterSupplier { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
-                    outputDataset,
-                    Optional.of(blockSize),
-                    Optional.of(GzipCompression()), // TODO pass compression as parameter
-                    Optional.empty(),
-                    Optional.empty(),
-                    overwriteExisiting)
+    for ((scaleNum, scale) in scales.withIndex()) {
+        val newScaleDataset = "$dataGroup/s${scaleNum + 1}"
 
-            val downsamplingFactor = DoubleArray(blockSize.size) { 1.0 }
+        N5DownsamplerSpark.downsample<T>(sc,
+                { N5FSWriter(info.outputContainer, DEFAULT_BUILDER) },
+                "$dataGroup/s$scaleNum",
+                newScaleDataset,
+                scales[scaleNum],
+                downsamplingBlockSizes[scaleNum])
 
-            for (scaleNum in scales.indices) {
-                val newScaleDataset = "$dataGroup/s${scaleNum+1}"
+        for (i in downsamplingFactor.indices)
+            downsamplingFactor[i] *= scale[i].toDouble()
 
-                N5DownsamplerSpark.downsample<T>(sc,
-                        { N5FSWriter(info.outputContainer, DEFAULT_BUILDER) },
-                        "$dataGroup/s$scaleNum",
-                        newScaleDataset,
-                        scales[scaleNum],
-                        downsamplingBlockSizes[scaleNum])
-
-                for (i in downsamplingFactor.indices) {
-                    downsamplingFactor[i] *= scales[scaleNum][i].toDouble()
-                }
-                writer.setAttribute(newScaleDataset, "downsamplingFactors", downsamplingFactor)
-
-            }
-
-            val res = resolution
-                    ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, RESOLUTION_KEY)
-                    ?: DoubleArray(3) { 1.0 }
-            writer.setAttribute("${info.outputGroup}/data", RESOLUTION_KEY, res)
-
-            val off = offset
-                    ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, OFFSET_KEY)
-                    ?: DoubleArray(3) { 0.0 }
-            writer.setAttribute("${info.outputGroup}/data", OFFSET_KEY, off)
-        }
     }
 }

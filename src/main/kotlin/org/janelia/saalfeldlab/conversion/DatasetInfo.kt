@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.conversion
 
 import org.janelia.saalfeldlab.n5.DataType
+import org.janelia.saalfeldlab.n5.DatasetAttributes
 import java.io.File
 import java.io.Serializable
 
@@ -15,7 +16,7 @@ data class DatasetInfo(
 
     val type: String
         get() {
-            val attrs = inputContainer.n5Reader().getDatasetAttributes(inputDataset)
+            val attrs = attributes
             return if (attrs.numDimensions == 4)
                 CHANNEL_IDENTIFIER
             else when (inputContainer.n5Reader().getDatasetAttributes(inputDataset).dataType) {
@@ -23,6 +24,9 @@ data class DatasetInfo(
                 else -> RAW_IDENTIFIER
             }
         }
+
+    val attributes: DatasetAttributes
+        get() = inputContainer.n5Reader().getDatasetAttributes(inputDataset)
 
     @Throws(InvalidInputContainer::class, InvalidInputDataset::class)
     fun ensureInput(): Boolean {

@@ -6,6 +6,7 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.label.spark.N5Helpers
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5Writer
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -248,7 +249,11 @@ class ContainerSpecificParameters {
     @CommandLine.Option(names = ["--container-block-size"])
     private var _blockSize: IntArray? = null
 
-    @CommandLine.Option(names =  ["--container-scale"], arity = "1..*", description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"])
+    @CommandLine.Option(
+            names =  ["--container-scale"],
+            arity = "1..*",
+            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+            converter = [SpatialIntArrayConverter::class])
     private var _scales: Array<IntArray>? = null
 
     @CommandLine.Option(names = ["--container-downsample-block-sizes"], arity = "1..*")
@@ -300,7 +305,11 @@ class DatasetSpecificParameters {
     @CommandLine.Option(names = ["--dataset-block-size"])
     private var _blockSize: IntArray? = null
 
-    @CommandLine.Option(names =  ["--dataset-scale"], arity = "1..*", description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"])
+    @CommandLine.Option(
+            names =  ["--dataset-scale"],
+            arity = "1..*",
+            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+            converter = [SpatialIntArrayConverter::class])
     private var _scales: Array<IntArray>? = null
 
     @CommandLine.Option(names = ["--dataset-downsample-block-sizes"], arity = "1..*")
@@ -359,7 +368,7 @@ fun N5Reader.getDoubleArrayAttribute(dataset: String, attribute: String) = try {
 }
 
 @Throws(IOException::class)
-fun setPainteraDataType(writer: N5FSWriter, group: String, type: String) = writer.setAttribute(group, PAINTERA_DATA_KEY, mapOf(Pair(TYPE_KEY, type)))
+fun N5Writer.setPainteraDataType(group: String, type: String) = setAttribute(group, PAINTERA_DATA_KEY, mapOf(Pair(TYPE_KEY, type)))
 
 val DEFAULT_BUILDER = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
 
@@ -383,6 +392,8 @@ const val PAINTERA_DATA_KEY = "painteraData"
 
 const val TYPE_KEY = "type"
 
+const val DOWNSAMPLING_FACTORS = "downsamplingFactors"
+
 val TYPE_OPTIONS = listOf("raw")
 
 class TypeOptions : ArrayList<String>(TYPE_OPTIONS.map { it })
@@ -395,3 +406,5 @@ fun <T> fillUpTo(array: Array<T>, size: Int): Array<T> {
     else
         array.copyOfRange(0, size)
 }
+
+fun scaleGroup(group: String, level: Int) = "$group/data/s$level"
