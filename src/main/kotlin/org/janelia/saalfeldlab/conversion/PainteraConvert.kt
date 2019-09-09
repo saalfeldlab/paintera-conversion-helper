@@ -444,7 +444,7 @@ const val TYPE_KEY = "type"
 
 const val DOWNSAMPLING_FACTORS = "downsamplingFactors"
 
-val TYPE_OPTIONS = listOf("raw")
+val TYPE_OPTIONS = listOf("channel", "label", "raw")
 
 class TypeOptions : ArrayList<String>(TYPE_OPTIONS.map { it })
 
