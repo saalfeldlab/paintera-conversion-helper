@@ -42,7 +42,7 @@ class PainteraConvert {
             for (container in args.containers) {
                 for (dataset in container.datasets) {
                     val info = DatasetInfo(
-                            inputContainer = container.container,
+                            inputContainer = container.container.absolutePath,
                             inputDataset = dataset.dataset,
                             outputContainer = args.outputContainer,
                             outputGroup = dataset.targetDataset)
@@ -208,7 +208,7 @@ class PainteraConvertParameters : Callable<Unit> {
 class ContainerParameters : Callable<Unit> {
 
     @CommandLine.Option(names = ["--container"])
-    private lateinit var _container: String
+    private lateinit var _container: File
 
     @CommandLine.ArgGroup(exclusive = false)
     var parameters: ContainerSpecificParameters = ContainerSpecificParameters()
@@ -217,16 +217,13 @@ class ContainerParameters : Callable<Unit> {
     @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
     private lateinit var _datasets: Array<DatasetParameters>
 
-    val container: String
-        get() = File(_container).absolutePath
+    val container: File
+        get() = _container
 
     val datasets: Array<DatasetParameters>
         get() = _datasets
 
-    override fun call() {
-        _container = File(container).absolutePath
-        datasets.forEach { it.parameters.initGlobalParameters(parameters) }
-    }
+    override fun call() = datasets.forEach { it.parameters.initGlobalParameters(parameters) }
 
 }
 
