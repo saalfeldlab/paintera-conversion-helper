@@ -24,12 +24,14 @@ abstract class DatasetConverter(val info: DatasetInfo) {
         }
 
         val res = parameters.resolution
-                ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, RESOLUTION_KEY)
+                ?.array
+                ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, RESOLUTION_KEY)?.let { if (parameters.revertArrayAttributes) it.reversedArray() else it }
                 ?: DoubleArray(3) { 1.0 }
         writer.setAttribute("${info.outputGroup}/data", RESOLUTION_KEY, res)
 
         val off = parameters.offset
-                ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, OFFSET_KEY)
+                ?.array
+                ?: N5Helpers.n5Reader(info.inputContainer).getDoubleArrayAttribute(info.inputDataset, OFFSET_KEY)?.let { if (parameters.revertArrayAttributes) it.reversedArray() else it }
                 ?: DoubleArray(3) { 0.0 }
         writer.setAttribute("${info.outputGroup}/data", OFFSET_KEY, off)
         writer.setPainteraDataType(info.outputGroup, type)
