@@ -201,6 +201,21 @@ class GlobalParameters : Callable<Unit> {
             "        Winner takes all downsampling:  Use gerrymandering scalar label type for downsampling instead of non-scalar, summarizing label type (https://github.com/saalfeldlab/paintera#label-multisets).",
             "        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
             "",
+            "Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
+            "",
+"""
+paintera-convert \
+  --scale 2,2,1 2,2,1 2,2,1 2 2 \
+  --revert-array-attributes \
+  --output-container=paintera-converted.n5 \
+  --container=sample_A_20160501.hdf \
+    -d volumes/raw \
+      --target-dataset=volumes/raw2 \
+      --dataset-scale 3,3,1 3,3,1 2 2 \
+      --dataset-resolution 4,4,40.0 \
+    -d volumes/labels/neuron_ids \
+""",
+            "",
             "Options:",
             ""])
 class PainteraConvertParameters : Callable<Unit> {
