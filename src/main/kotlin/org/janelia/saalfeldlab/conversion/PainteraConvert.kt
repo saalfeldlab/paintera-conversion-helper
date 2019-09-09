@@ -133,6 +133,17 @@ class GlobalParameters : Callable<Unit> {
     @CommandLine.Option(names = ["--offset"], converter = [SpatialArrayConverter::class])
     var offset: DoubleArray? = null
 
+    @CommandLine.Option(names = ["--max-num-entries", "-m"], arity = "1..*")
+    private var _maxNumEntries: IntArray? = null
+
+    @CommandLine.Option(names = ["--label-block-lookup-n5-block-size"], defaultValue = "10000")
+    var labelBlockLookupN5BlockSize: Int = 10000
+        private set
+
+    @CommandLine.Option(names = ["--winner-takes-all-downsampling"], defaultValue = "false")
+    var winnerTakesAllDownsampling: Boolean = false
+        private set
+
     val blockSize: IntArray
         get() = _blockSize
 
@@ -144,6 +155,9 @@ class GlobalParameters : Callable<Unit> {
 
     val downsamplingBlockSizes
         get() = fillUpTo(if (_downsamplingBlockSizes.isEmpty()) arrayOf(blockSize) else _downsamplingBlockSizes, numScales)
+
+    val maxNumEntries: IntArray
+        get() = _maxNumEntries?.let { fillUpTo(if (it.isEmpty()) intArrayOf(-1) else it, numScales) } ?: IntArray(numScales) { -1 }
 
     override fun call() {
         ensureInitialized()
@@ -180,7 +194,7 @@ class PainteraConvertParameters : Callable<Unit> {
         get() = helpRequested || versionRequested
 
     val outputContainer: String
-        get() = _outputContainer
+        get() = File(_outputContainer).absolutePath
 
     override fun call() {
         parameters.call()
@@ -204,7 +218,7 @@ class ContainerParameters : Callable<Unit> {
     private lateinit var _datasets: Array<DatasetParameters>
 
     val container: String
-        get() = _container
+        get() = File(_container).absolutePath
 
     val datasets: Array<DatasetParameters>
         get() = _datasets
@@ -268,6 +282,15 @@ class ContainerSpecificParameters {
     @CommandLine.Option(names = ["--container-offset"])
     private var _offset: DoubleArray? = null
 
+    @CommandLine.Option(names = ["--container-max-num-entries"], arity = "1..*")
+    private var _maxNumEntries: IntArray? = null
+
+    @CommandLine.Option(names = ["--container-label-block-lookup-n5-block-size"])
+    private var _labelBlockLookupN5BlockSize: Int? = null
+
+    @CommandLine.Option(names = ["--container-winner-takes-all-downsampling"])
+    private var _winnerTakesAllDownsampling: Boolean? = null
+
     val blockSize: IntArray
         get() = _blockSize ?: globalParameters.blockSize
 
@@ -288,6 +311,15 @@ class ContainerSpecificParameters {
 
     val offset: DoubleArray?
         get() = _offset ?: globalParameters.offset
+
+    val maxNumEntries: IntArray
+        get() = _maxNumEntries?.let { fillUpTo(if (it.isEmpty()) intArrayOf(-1) else it, numScales) } ?: fillUpTo(globalParameters.maxNumEntries, numScales)
+
+    val labelBlockLookupN5BlockSize: Int
+        get() = _labelBlockLookupN5BlockSize ?: globalParameters.labelBlockLookupN5BlockSize
+
+    val winnerTakesAllDownsampling: Boolean
+        get() = _winnerTakesAllDownsampling ?: globalParameters.winnerTakesAllDownsampling
 
 //    @CommandLine.Option(names = ["--overwrite-existing"])
 //    var overwriteExisiting: Boolean? = null
@@ -327,6 +359,15 @@ class DatasetSpecificParameters {
     @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false)
     private var _type: String? = null
 
+    @CommandLine.Option(names = ["--dataset-max-num-entries"], arity = "1..*")
+    private var _maxNumEntries: IntArray? = null
+
+    @CommandLine.Option(names = ["--dataset-label-block-lookup-n5-block-size"])
+    private var _labelBlockLookupN5BlockSize: Int? = null
+
+    @CommandLine.Option(names = ["--dataset-winner-takes-all-downsampling"])
+    private var _winnerTakesAllDownsampling: Boolean? = null
+
     val blockSize: IntArray
         get() = _blockSize ?: containerParameters.blockSize
 
@@ -350,6 +391,15 @@ class DatasetSpecificParameters {
 
     val type: String?
         get() = _type
+
+    val maxNumEntries: IntArray
+        get() = _maxNumEntries?.let { fillUpTo(if (it.isEmpty()) intArrayOf(-1) else it, numScales) } ?: fillUpTo(containerParameters.maxNumEntries, numScales)
+
+    val labelBlockLookupN5BlockSize: Int
+        get() = _labelBlockLookupN5BlockSize ?: containerParameters.labelBlockLookupN5BlockSize
+
+    val winnerTakesAllDownsampling: Boolean
+        get() = _winnerTakesAllDownsampling ?: containerParameters.winnerTakesAllDownsampling
 
 //    @CommandLine.Option(names = ["--overwrite-existing"])
 //    var overwriteExisiting: Boolean? = null
@@ -402,7 +452,16 @@ fun <T> fillUpTo(array: Array<T>, size: Int): Array<T> {
     return if (array.size == size)
         array
     else if (array.size < size)
-        array + List(size - array.size) { array[size - 1] }
+        array + List(size - array.size) { array.last() }
+    else
+        array.copyOfRange(0, size)
+}
+
+fun fillUpTo(array: IntArray, size: Int): IntArray {
+    return if (array.size == size)
+        array
+    else if (array.size < size)
+        array + List(size - array.size) { array.last() }
     else
         array.copyOfRange(0, size)
 }

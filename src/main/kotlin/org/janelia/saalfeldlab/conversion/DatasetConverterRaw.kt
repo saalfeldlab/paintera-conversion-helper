@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import java.io.IOException
+import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.Optional
 
@@ -100,7 +101,8 @@ fun <T> handleRawDataset(
     for ((scaleNum, scale) in scales.withIndex()) {
         val newScaleDataset = "$dataGroup/s${scaleNum + 1}"
 
-        N5DownsamplerSpark.downsample<T>(sc,
+        N5DownsamplerSpark.downsample<T>(
+                sc,
                 { N5FSWriter(info.outputContainer, DEFAULT_BUILDER) },
                 "$dataGroup/s$scaleNum",
                 newScaleDataset,

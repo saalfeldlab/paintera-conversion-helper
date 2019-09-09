@@ -11,7 +11,7 @@ data class DatasetInfo(
         val outputContainer: String,
         val outputGroup: String = inputDataset) : Serializable {
     init {
-        inputContainer != outputContainer
+        require(inputContainer != outputContainer) { "Input container $inputContainer is the same as output container $outputContainer" }
     }
 
     val type: String

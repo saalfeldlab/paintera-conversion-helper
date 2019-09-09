@@ -49,6 +49,7 @@ abstract class DatasetConverter(val info: DatasetInfo) {
         operator fun get(info: DatasetInfo, type: String) = when(type.toLowerCase()) {
             "raw" -> DatasetConverterRaw(info)
             "channel" -> DatasetConverterChannel(info)
+            "label" -> DatasetConverterLabel(info)
             else -> null
         }
     }
