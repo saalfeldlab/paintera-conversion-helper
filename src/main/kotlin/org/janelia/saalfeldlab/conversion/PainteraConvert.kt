@@ -171,8 +171,8 @@ class GlobalParameters : Callable<Unit> {
                     "where TYPE is any of {channel, label, raw}.",
             "",
             "" +
-                    "Label data paintera groups have additional sub-groups to store unique lists of label ids for each block (`unique-labels') per each scale level, " +
-                    "an index of containing blocks for each label id (`label-to-block-mapping') per each scale level, " +
+                    "Label data paintera groups have additional sub-groups to store unique lists of label ids for each block (`unique-labels') per scale level, " +
+                    "an index of containing blocks for each label id (`label-to-block-mapping') per scale level, " +
                     "and a lookup table for manual agglomeration of fragments (`fragment-segment-assignment').  " +
                     "Currently, the lookup table cannot be provided during conversion and will be populated when using Paintera.  " +
                     "A mandatory attribute `maxId' in the paintera group keeps track of the largest label id that has been used for a dataset.  " +
@@ -193,12 +193,12 @@ class GlobalParameters : Callable<Unit> {
             "    Downsampling block sizes:  A list of 3-tuples of integers that specify the block size at each scale level. " +
                     "If fewer downsampling block sizes than scales are specified, the unspecified downsampling block sizes default to the block size of the lowest resolution dataset sN for which a block size is specified.",
             "    Resolution:  3-tuple of floating point values to specify resolution (physical extent) of a voxel.  " +
-                    "Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available, if not specified.",
+                    "Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available and not specified.",
             "    Offset:  3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in some arbitrary coordinate space defined by the resolution.  " +
-                    "Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available, if not specified.",
+                    "Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available and not specified.",
             "    Revert array attributes:  Revert array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
             "    Label only:",
-            "        Winner takes all downsampling:  Use gerrymandering scalar label type for downsampling instead of non-scalar, summarizing label type (https://github.com/saalfeldlab/paintera#label-multisets).",
+            "        Winner takes all downsampling:  Use scalar label type instead of non-scalar label type by assigning majority label to downsampled voxels.",
             "        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
             "",
             "Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
