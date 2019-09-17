@@ -105,7 +105,7 @@ paintera-convert to-paintera \
       --target-dataset=volumes/raw2 \
       --dataset-scale 3,3,1 3,3,1 2 2 \
       --dataset-resolution 4,4,40.0 \
-    -d volumes/labels/neuron_ids \
+    -d volumes/labels/neuron_ids
 """,
                 "",
                 "Options:",
