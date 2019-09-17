@@ -48,7 +48,7 @@ class PainteraConvert : Callable<Unit> {
                 if (!parseResult.hasSubcommand()) {
                     System.err.println("No command specified!")
                     cli.usage(System.err)
-                    exitProcess(253)
+                    exitProcess(EXIT_CODE_NO_SUBCOMMAND)
                 }
             } catch (conversionError: ConversionException) {
                 System.err.println(conversionError.message)
