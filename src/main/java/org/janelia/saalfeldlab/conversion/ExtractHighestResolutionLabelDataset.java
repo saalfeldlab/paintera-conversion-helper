@@ -63,7 +63,7 @@ public class ExtractHighestResolutionLabelDataset  {
             .of("dimensions", "blockSize", "compression", "dataType")
             .collect(Collectors.toSet());
 
-    private static class LookupPair implements Serializable {
+    public static class LookupPair implements Serializable {
 
         public final long key;
 
@@ -74,7 +74,7 @@ public class ExtractHighestResolutionLabelDataset  {
             this.value = value;
         }
 
-        private static class Converter implements CommandLine.ITypeConverter<LookupPair> {
+        public static class Converter implements CommandLine.ITypeConverter<LookupPair> {
 
             @Override
             public LookupPair convert(String s) {
@@ -150,6 +150,18 @@ public class ExtractHighestResolutionLabelDataset  {
 
     public static void main(String[] args) {
         CommandLine.call(new Args(), args);
+    }
+
+    public static void extractNoGenerics(
+            final JavaSparkContext sc,
+            final N5ReaderSupplier n5in,
+            final N5WriterSupplier n5out,
+            final String datasetIn,
+            final String datasetOut,
+            final int[] blockSizeOut,
+            final boolean considerFragmentSegmentAssignment,
+            final TLongLongMap assignment) throws IOException {
+        extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment);
     }
 
     public static <IN extends NativeType<IN> & IntegerType<IN>> void extract(

@@ -1,7 +1,12 @@
-package org.janelia.saalfeldlab.conversion
+package org.janelia.saalfeldlab.paintera.conversion
 
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
+import org.janelia.saalfeldlab.paintera.conversion.to.paintera.CHANNEL_IDENTIFIER
+import org.janelia.saalfeldlab.paintera.conversion.to.paintera.LABEL_IDENTIFIER
+import org.janelia.saalfeldlab.paintera.conversion.to.paintera.RAW_IDENTIFIER
+import org.janelia.saalfeldlab.paintera.conversion.to.paintera.n5Reader
+import org.janelia.saalfeldlab.paintera.conversion.to.paintera.n5Writer
 import java.io.File
 import java.io.Serializable
 
