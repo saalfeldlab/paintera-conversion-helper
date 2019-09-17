@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.conversion
+package org.janelia.saalfeldlab.paintera.conversion.to.paintera
 
 import com.google.gson.JsonElement
 import net.imglib2.type.NativeType
@@ -12,8 +12,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import net.imglib2.type.numeric.real.DoubleType
-import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
 import org.janelia.saalfeldlab.label.spark.downsample.SparkDownsampler
@@ -30,6 +28,7 @@ import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
+import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
 import java.io.File
 import java.io.IOException
 import java.nio.file.Paths

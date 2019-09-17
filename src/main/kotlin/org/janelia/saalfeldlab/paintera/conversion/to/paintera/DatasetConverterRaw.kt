@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.conversion
+package org.janelia.saalfeldlab.paintera.conversion.to.paintera
 
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
+import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
 import java.io.IOException
 import java.nio.file.Paths
 import java.util.*

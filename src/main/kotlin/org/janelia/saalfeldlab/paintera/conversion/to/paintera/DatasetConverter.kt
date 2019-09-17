@@ -1,7 +1,8 @@
-package org.janelia.saalfeldlab.conversion
+package org.janelia.saalfeldlab.paintera.conversion.to.paintera
 
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.label.spark.N5Helpers
+import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
 
 abstract class DatasetConverter(val info: DatasetInfo) {
 

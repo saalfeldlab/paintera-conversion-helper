@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.conversion
+package org.janelia.saalfeldlab.paintera.conversion.to.paintera
 
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
@@ -6,7 +6,9 @@ import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
+import org.janelia.saalfeldlab.conversion.IncompatibleChannelAxis
 import org.janelia.saalfeldlab.n5.DataType
+import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
 import java.io.IOException
 
 class DatasetConverterChannel(info: DatasetInfo) : DatasetConverter(info) {

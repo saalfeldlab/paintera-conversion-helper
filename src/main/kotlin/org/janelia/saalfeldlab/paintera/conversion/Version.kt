@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.conversion
+package org.janelia.saalfeldlab.paintera.conversion
 
 import org.scijava.util.VersionUtils
 import java.lang.invoke.MethodHandles
