@@ -42,6 +42,7 @@ class ToPainteraData {
 
     @CommandLine.Command(
             name = "to-paintera",
+            sortOptions = false,
             aliases = ["tp"],
             usageHelpWidth = 120,
             header = [
@@ -114,25 +115,25 @@ paintera-convert to-paintera \
         @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1")
         var parameters: GlobalParameters = GlobalParameters()
 
-        @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
-        lateinit var containers: Array<ContainerParameters>
-
         @CommandLine.Option(names = ["--overwrite-existing"], defaultValue = "false")
         var overwriteExisting: Boolean = false
 
-        @CommandLine.Option(names = ["--help"], help = true, usageHelp = true)
-        var helpRequested: Boolean = false
-
         @CommandLine.Option(names = ["--output-container"], required = true, paramLabel = "OUTPUT_CONTAINER")
         lateinit var _outputContainer: String
-
-        val outputContainer: String
-            get() = File(_outputContainer).absolutePath
 
         @CommandLine.Option(
                 names = ["--spark-master"],
                 required = false)
         var sparkMaster: String? = null
+
+        @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
+        lateinit var containers: Array<ContainerParameters>
+
+        @CommandLine.Option(names = ["--help"], help = true, usageHelp = true)
+        var helpRequested: Boolean = false
+
+        val outputContainer: String
+            get() = File(_outputContainer).absolutePath
 
         override fun call(): Int {
 
@@ -207,6 +208,7 @@ class GlobalParameters : Callable<Unit> {
     // TODO use custom class instead of IntArray
     @CommandLine.Option(
             names = ["--block-size"],
+            description = ["Use --container-block-size and --dataset-block-size for container and dataset specific block sizes, respectively."],
             paramLabel = SpatialIntArray.PARAM_LABEL,
             defaultValue = "64,64,64",
             converter = [SpatialIntArray.Converter::class])
@@ -215,35 +217,75 @@ class GlobalParameters : Callable<Unit> {
     @CommandLine.Option(
             names =  ["--scale"],
             arity = "1..*",
-            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+            description = [
+                "Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
+                "Use --container-scale and --dataset-scale for container and dataset specific scales, respectively."],
             converter = [SpatialIntArray.Converter::class],
             paramLabel = SpatialIntArray.PARAM_LABEL)
     private lateinit var _scales: Array<SpatialIntArray>
 
     @CommandLine.Option(
             names = ["--downsample-block-sizes"],
+            description = ["Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container and dataset specific block sizes, respectively."],
             arity = "1..*",
             converter = [SpatialIntArray.Converter::class],
             paramLabel = SpatialIntArray.PARAM_LABEL)
     private lateinit var _downsamplingBlockSizes: Array<SpatialIntArray>
 
-    @CommandLine.Option(names = ["--revert-array-attributes"], defaultValue = "false")
+    @CommandLine.Option(
+            names = ["--revert-array-attributes"],
+            description = [
+                "Revert array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].",
+                "Use --container-revert-array-attributes and --dataset-revert-array-attributes for container and dataset specific setting, respectively."],
+            defaultValue = "false")
     var revertArrayAttributes: Boolean = false
 
-    @CommandLine.Option(names = ["--resolution"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(
+            names = ["--resolution"],
+            description = [
+                "Specify resolution (overrides attributes of input datasets, if any).",
+                "Use --container-resolution and --dataset-resolution for container and dataset specific resolution, respectively."],
+            converter = [SpatialDoubleArray.Converter::class], 
+            paramLabel = SpatialDoubleArray.PARAM_LABEL)
     var resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--offset"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(
+            names = ["--offset"],
+            description = [
+                "Specify offset (overrides attributes of input datasets, if any).",
+                "Use --container-offset and --dataset-offset for container and dataset specific resolution, respectively."],
+            converter = [SpatialDoubleArray.Converter::class],
+            paramLabel = SpatialDoubleArray.PARAM_LABEL)
     var offset: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--max-num-entries", "-m"], arity = "1..*", paramLabel = "N")
+    @CommandLine.Option(
+            names = ["--max-num-entries", "-m"],
+            description = [
+                "" +
+                        "Limit number of entries for non-scalar label types by N. If N is negative, do not limit number of entries.  " +
+                        "If fewer values than the number of down-sampling layers are provided, the missing values are copied from the " +
+                        "last available entry.  If none are provided, default to -1 for all levels.",
+                "Use --container-max-num-entries and --dataset-max-num-entries for container and dataset specific settings, respectively."],
+            arity = "1..*", 
+            paramLabel = "N")
     private var _maxNumEntries: IntArray? = null
 
-    @CommandLine.Option(names = ["--label-block-lookup-n5-block-size"], defaultValue = "10000", paramLabel = "N")
+    @CommandLine.Option(
+            names = ["--label-block-lookup-n5-block-size"],
+            description = [
+                "Set the block size for the N5 container for the label-block-lookup.",
+                "Use --container-label-block-lookup-n5-block-size and --dataset-label-block-lookup-n5-block-size for container and dataset specific settings, respectively."],
+            defaultValue = "10000",
+            paramLabel = "N")
     var labelBlockLookupN5BlockSize: Int = 10000
         private set
 
-    @CommandLine.Option(names = ["--winner-takes-all-downsampling"], defaultValue = "false")
+    @CommandLine.Option(
+            names = ["--winner-takes-all-downsampling"],
+            description = [
+                "Use scalar label type with winner-takes-all downsampling.",
+                "Use --container-winner-takes-all-downsampling and --dataset-winner-takes-all-downsampling for container and dataset specific settings, respectively."],
+            defaultValue = "false")
     var winnerTakesAllDownsampling: Boolean = false
         private set
 
@@ -327,6 +369,7 @@ class ContainerSpecificParameters {
 
     @CommandLine.Option(
             names = ["--container-block-size"],
+            hidden = true,
             paramLabel = SpatialIntArray.PARAM_LABEL,
             defaultValue = "64,64,64",
             converter = [SpatialIntArray.Converter::class])
@@ -334,6 +377,7 @@ class ContainerSpecificParameters {
 
     @CommandLine.Option(
             names =  ["--container-scale"],
+            hidden = true,
             arity = "1..*",
             description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
             converter = [SpatialIntArray.Converter::class],
@@ -342,27 +386,28 @@ class ContainerSpecificParameters {
 
     @CommandLine.Option(
             names = ["--container-downsample-block-sizes"],
+            hidden = true,
             arity = "1..*",
             converter = [SpatialIntArray.Converter::class],
             paramLabel = SpatialIntArray.PARAM_LABEL)
     private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
-    @CommandLine.Option(names = ["--container-revert-array-attributes"])
+    @CommandLine.Option(names = ["--container-revert-array-attributes"], hidden = true)
     private var _revertArrayAttributes: Boolean? = null
 
-    @CommandLine.Option(names = ["--container-resolution"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(names = ["--container-resolution"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
     private var _resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--container-offset"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(names = ["--container-offset"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
     private var _offset: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--container-max-num-entries"], arity = "1..*", paramLabel = "N")
+    @CommandLine.Option(names = ["--container-max-num-entries"], hidden = true, arity = "1..*", paramLabel = "N")
     private var _maxNumEntries: IntArray? = null
 
-    @CommandLine.Option(names = ["--container-label-block-lookup-n5-block-size"], paramLabel = "N")
+    @CommandLine.Option(names = ["--container-label-block-lookup-n5-block-size"], hidden = true, paramLabel = "N")
     private var _labelBlockLookupN5BlockSize: Int? = null
 
-    @CommandLine.Option(names = ["--container-winner-takes-all-downsampling"])
+    @CommandLine.Option(names = ["--container-winner-takes-all-downsampling"], hidden = true)
     private var _winnerTakesAllDownsampling: Boolean? = null
 
     val blockSize: SpatialIntArray
@@ -412,12 +457,14 @@ class DatasetSpecificParameters {
 
     @CommandLine.Option(
             names = ["--dataset-block-size"],
+            hidden = true,
             paramLabel = SpatialIntArray.PARAM_LABEL,
             converter = [SpatialIntArray.Converter::class])
     private var _blockSize: SpatialIntArray? = null
 
     @CommandLine.Option(
             names =  ["--dataset-scale"],
+            hidden = true,
             arity = "1..*",
             description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
             converter = [SpatialIntArray.Converter::class],
@@ -426,31 +473,32 @@ class DatasetSpecificParameters {
 
     @CommandLine.Option(
             names = ["--dataset-downsample-block-sizes"],
+            hidden = true,
             arity = "1..*",
             description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
             converter = [SpatialIntArray.Converter::class],
             paramLabel = SpatialIntArray.PARAM_LABEL)
     private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
-    @CommandLine.Option(names = ["--dataset-revert-array-attributes"])
+    @CommandLine.Option(names = ["--dataset-revert-array-attributes"], hidden = true)
     private var _revertArrayAttributes: Boolean? = null
 
-    @CommandLine.Option(names = ["--dataset-resolution"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(names = ["--dataset-resolution"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
     private var _resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--dataset-offset"], converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(names = ["--dataset-offset"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
     private var _offset: SpatialDoubleArray? = null
 
     @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false, paramLabel = "TYPE")
     private var _type: String? = null
 
-    @CommandLine.Option(names = ["--dataset-max-num-entries"], arity = "1..*", paramLabel = "N")
+    @CommandLine.Option(names = ["--dataset-max-num-entries"], hidden = true, arity = "1..*", paramLabel = "N")
     private var _maxNumEntries: IntArray? = null
 
-    @CommandLine.Option(names = ["--dataset-label-block-lookup-n5-block-size"], paramLabel = "N")
+    @CommandLine.Option(names = ["--dataset-label-block-lookup-n5-block-size"], hidden = true, paramLabel = "N")
     private var _labelBlockLookupN5BlockSize: Int? = null
 
-    @CommandLine.Option(names = ["--dataset-winner-takes-all-downsampling"])
+    @CommandLine.Option(names = ["--dataset-winner-takes-all-downsampling"], hidden = true)
     private var _winnerTakesAllDownsampling: Boolean? = null
 
     val blockSize: SpatialIntArray
