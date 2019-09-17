@@ -1,5 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.scijava</groupId>
@@ -9,7 +8,7 @@
 
     <groupId>org.janelia.saalfeldlab</groupId>
     <artifactId>paintera-conversion-helper</artifactId>
-    <version>0.8.2-SNAPSHOT</version>
+    <version>0.9.0</version>
 
     <name>Paintera-Conversion-Helper</name>
     <description>Command line helper to convert datasets to be paintera friendly.</description>
@@ -47,7 +46,7 @@
             <id>hanslovsky</id>
             <name>Philipp Hanslovsky</name>
             <email>hanslovskyp@janelia.hhmi.org</email>
-            <url/>
+            <url />
             <organization>HHMI Janelia</organization>
             <organizationUrl>http://janelia.org/</organizationUrl>
             <roles>
@@ -62,7 +61,7 @@
             <id>nthistle</id>
             <name>Neil Thistlethwaite</name>
             <email>thistlethwaiten@janelia.hhmi.org</email>
-            <url/>
+            <url />
             <organization>HHMI Janelia</organization>
             <organizationUrl>http://janelia.org/</organizationUrl>
             <roles>
@@ -93,7 +92,7 @@
     <scm>
         <connection>scm:git:git://github.com/saalfeldlab/paintera-conversion-helper</connection>
         <developerConnection>scm:git:git@github.com:saalfeldlab/paintera-conversion-helper.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>paintera-conversion-helper-0.9.0</tag>
         <url>https://github.com/saalfeldlab/paintera-conversion-helper</url>
     </scm>
 
@@ -217,8 +216,7 @@
                                 </goals>
                                 <configuration>
                                     <transformers>
-                                        <transformer
-                                                implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>org.janelia.saalfeldlab.conversion.CommandLineConverter
                                             </mainClass>
                                         </transformer>
@@ -284,8 +282,7 @@
                                 </goals>
                                 <configuration>
                                     <transformers>
-                                        <transformer
-                                                implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>org.janelia.saalfeldlab.conversion.CommandLineConverter
                                             </mainClass>
                                         </transformer>
