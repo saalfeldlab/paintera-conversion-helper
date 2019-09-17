@@ -1,18 +1,5 @@
 package org.janelia.saalfeldlab.conversion;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
-
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import org.apache.spark.SparkConf;
@@ -36,12 +23,27 @@ import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark;
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
+
+@Deprecated
 public class CommandLineConverter
 {
+	private static final String DEPRECATION_MESSAGE = "The CommandLineConverter has been deprecated in favor of PainteraConvert. Please use PainteraConvert instead.";
+
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final String LABEL_BLOCK_LOOKUP_KEY = "labelBlockLookup";
@@ -110,6 +112,7 @@ public class CommandLineConverter
 
 	public static void main( final String[] args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException {
 		run(args);
+		System.err.println(DEPRECATION_MESSAGE);
 	}
 
 	public static void run( final String... args ) throws IOException, InvalidDataType, InvalidN5Container, InvalidDataset, InputSameAsOutput, ConverterException
