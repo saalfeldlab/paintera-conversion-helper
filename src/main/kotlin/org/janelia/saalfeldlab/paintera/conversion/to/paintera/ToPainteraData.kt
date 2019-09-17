@@ -9,6 +9,7 @@ import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.conversion.ConversionException
 import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
+import org.janelia.saalfeldlab.paintera.conversion.NoSparkMasterSpecified
 import org.janelia.saalfeldlab.paintera.conversion.PainteraConvert
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -174,6 +175,12 @@ paintera-convert to-paintera \
             return try {
                 val conf = SparkConf().setAppName(MethodHandles.lookup().lookupClass().simpleName)
                 sparkMaster?.let { conf.setMaster(it) }
+                try {
+                    if (conf["spark.master"] === null)
+                        throw NoSparkMasterSpecified("--spark-master")
+                } catch (_: NoSuchElementException) {
+                    throw NoSparkMasterSpecified("--spark-master")
+                }
                 JavaSparkContext(conf).use { sc ->
                     datasets.forEach { dataset, (converter, parameters) ->
                         println("Converting dataset `$dataset'")

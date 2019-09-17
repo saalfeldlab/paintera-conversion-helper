@@ -9,6 +9,7 @@ import org.janelia.saalfeldlab.label.spark.N5Helpers
 import org.janelia.saalfeldlab.paintera.conversion.ConversionException
 import org.janelia.saalfeldlab.paintera.conversion.InvalidBlockSize
 import org.janelia.saalfeldlab.paintera.conversion.InvalidOutputDataset
+import org.janelia.saalfeldlab.paintera.conversion.NoSparkMasterSpecified
 import org.janelia.saalfeldlab.paintera.conversion.PainteraConvert
 import picocli.CommandLine
 import java.io.IOException
@@ -129,6 +130,12 @@ class ToScalar : Callable<Int> {
 
             val conf = SparkConf().setAppName(MethodHandles.lookup().lookupClass().name)
             sparkMaster?.let { conf.setMaster(it) }
+            try {
+                if (conf["spark.master"] === null)
+                    throw NoSparkMasterSpecified("--spark-master")
+            } catch (_: NoSuchElementException) {
+                throw NoSparkMasterSpecified("--spark-master")
+            }
 
             JavaSparkContext(conf).use { sc ->
                 ExtractHighestResolutionLabelDataset.extractNoGenerics(
