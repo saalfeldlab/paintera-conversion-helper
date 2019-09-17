@@ -45,8 +45,8 @@ class ToPainteraData {
             usageHelpWidth = 120,
             header = [
                 "" +
-                        "Converts arbitrary 3D label and single- or multi-channel raw datasets in N5 or HDF5 containers into a Paintera-friendly format.  " +
-                        "A more detailed description is provided after the synopsis/usage.",
+                        "Converts arbitrary 3D label and single- or multi-channel raw datasets " +
+                        "in N5 or HDF5 containers into a Paintera-friendly format.  ",
                 ""],
             description = [
                 "",
