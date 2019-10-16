@@ -16,7 +16,10 @@ data class DatasetInfo(
         val outputContainer: String,
         val outputGroup: String = inputDataset) : Serializable {
     init {
-        require(inputContainer != outputContainer) { "Input container $inputContainer is the same as output container $outputContainer" }
+        // TODO should possibly also check if inputDataset is contained in outputGroup
+        require(inputContainer != outputContainer || inputDataset != outputGroup) {
+            "Output location and input location are identical: container=`$inputContainer' group=`$outputGroup'"
+        }
     }
 
     val type: String
