@@ -39,6 +39,7 @@
         <kotlin.version>1.3.50</kotlin.version>
 
         <picocli.version>4.0.4</picocli.version>
+        <imglib2-cache.version>1.0.0-beta-13</imglib2-cache.version>
     </properties>
 
     <developers>
@@ -113,7 +114,7 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>label-utilities-spark</artifactId>
-            <version>0.8.3</version>
+            <version>0.8.4-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>info.picocli</groupId>

@@ -524,12 +524,14 @@ public class CommandLineConverter
 
 		setPainteraDataType( writer, fullGroup, LABEL_IDENTIFIER );
 
+		// TODO replace Paths.get(a, b) with String.format("%s/%s", a, b)
 		final String dataGroup = Paths.get( fullGroup, "data" ).toString();
 		writer.createGroup( dataGroup );
 		writer.setAttribute( dataGroup, "multiScale", true );
 		final String outputDataset = Paths.get( fullGroup, "data", "s0" ).toString();
 		final String uniqueLabelsGroup = Paths.get( fullGroup, "unique-labels" ).toString();
-		final String labelBlockMappingGroup = Paths.get(fullGroup, "label-to-block-mapping" ).toString();
+		final String labelBlockMappingGroupBasename = "label-to-block-mapping";
+		final String labelBlockMappingGroup = Paths.get(fullGroup,  labelBlockMappingGroupBasename).toString();
 		final String labelBlockMappingGroupDirectory = Paths.get( outputN5, labelBlockMappingGroup ).toAbsolutePath().toString();
 
 		if ( winnerTakesAll )
@@ -606,7 +608,14 @@ public class CommandLineConverter
 
 		if ( labelBlockLookupN5BlockSize.isPresent() )
 		{
-			LabelToBlockMapping.createMappingWithMultiscaleCheckN5(sc, outputN5, uniqueLabelsGroup, outputN5, labelBlockMappingGroup, labelBlockLookupN5BlockSize.get());
+			LabelToBlockMapping.createMappingWithMultiscaleCheckN5(
+					sc,
+					outputN5,
+					uniqueLabelsGroup,
+					outputN5,
+					fullGroup,
+					labelBlockMappingGroupBasename,
+					labelBlockLookupN5BlockSize.get());
 
 		}
 		else
