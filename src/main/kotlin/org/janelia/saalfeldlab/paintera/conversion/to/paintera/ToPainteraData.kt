@@ -605,6 +605,8 @@ fun N5Writer.setPainteraDataType(group: String, type: String) = setAttribute(gro
 
 val DEFAULT_BUILDER = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
 
+fun defaultBuilder() = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
+
 const val LABEL_BLOCK_LOOKUP_KEY = "labelBlockLookup"
 
 const val RAW_IDENTIFIER = "raw"
