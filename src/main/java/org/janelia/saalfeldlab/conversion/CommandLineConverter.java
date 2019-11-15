@@ -62,8 +62,6 @@ public class CommandLineConverter
 
 	private static final String OFFSET_KEY = "offset";
 
-	private static final GsonBuilder DEFAULT_BUILDER = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping();
-
 	public static class CommandLineParameters
 	{
 		@Option( names = { "-d", "--dataset" },
@@ -381,7 +379,7 @@ public class CommandLineConverter
 		final String outputGroupName = (datasetInfo.length == 4) ? datasetInfo[3] : inputDataset;
 		final String fullGroup = outputGroupName;
 
-		final N5FSWriter writer = new N5FSWriter(outputN5, DEFAULT_BUILDER);
+		final N5FSWriter writer = new N5FSWriter(outputN5, defaultGsonBuilder());
 		writer.createGroup(fullGroup);
 
 		setPainteraDataType(writer, fullGroup, RAW_IDENTIFIER);
@@ -398,7 +396,7 @@ public class CommandLineConverter
 			N5ConvertSpark.convert(sc,
 					() -> N5Helpers.n5Reader(inputN5),
 					inputDataset,
-					() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
+					() -> new N5FSWriter(outputN5, defaultGsonBuilder()),
 					outputDataset,
 					Optional.of(blockSize),
 					Optional.of(new GzipCompression()), // TODO pass compression
@@ -414,7 +412,7 @@ public class CommandLineConverter
 			final String newScaleDataset = Paths.get(dataGroup, String.format("s%d", scaleNum + 1)).toString();
 
 			N5DownsamplerSpark.downsample(sc,
-					() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
+					() -> new N5FSWriter(outputN5, defaultGsonBuilder()),
 					Paths.get(dataGroup, String.format("s%d", scaleNum)).toString(),
 					newScaleDataset,
 					scales[scaleNum],
@@ -491,7 +489,7 @@ public class CommandLineConverter
 				offset
 		);
 
-		final N5FSWriter writer = new N5FSWriter(outputN5, DEFAULT_BUILDER);
+		final N5FSWriter writer = new N5FSWriter(outputN5, defaultGsonBuilder());
 		setPainteraDataType(writer, outputGroupName, CHANNEL_IDENTIFIER);
 		writer.setAttribute(outputGroupName, CHANNEL_AXIS_KEY, channelAxis);
 
@@ -524,7 +522,7 @@ public class CommandLineConverter
 		final String outputGroupName = ( datasetInfo.length == 4 ) ? datasetInfo[ 3 ] : inputDataset;
 		final String fullGroup = outputGroupName;
 
-		final N5FSWriter writer = new N5FSWriter( outputN5, DEFAULT_BUILDER );
+		final N5FSWriter writer = new N5FSWriter( outputN5, defaultGsonBuilder() );
 		writer.createGroup( fullGroup );
 
 		setPainteraDataType( writer, fullGroup, LABEL_IDENTIFIER );
@@ -542,7 +540,7 @@ public class CommandLineConverter
 			N5ConvertSpark.convert( sc,
 					() -> N5Helpers.n5Reader( inputN5 ),
 					inputDataset,
-					() -> new N5FSWriter( outputN5, DEFAULT_BUILDER ),
+					() -> new N5FSWriter( outputN5, defaultGsonBuilder() ),
 					outputDataset,
 					Optional.of( initialBlockSize ),
 					Optional.of( new GzipCompression() ), // TODO pass
@@ -559,7 +557,7 @@ public class CommandLineConverter
 				final String newScaleDataset = Paths.get( dataGroup, String.format( "s%d", scaleNum + 1 ) ).toString();
 
 				N5LabelDownsamplerSpark.downsampleLabel( sc,
-						() -> new N5FSWriter( outputN5, DEFAULT_BUILDER ),
+						() -> new N5FSWriter( outputN5, defaultGsonBuilder() ),
 						Paths.get( dataGroup, String.format( "s%d", scaleNum ) ).toString(),
 						newScaleDataset,
 						scales[ scaleNum ],
@@ -653,5 +651,10 @@ public class CommandLineConverter
 		} catch (ClassCastException e) {
 			return LongStream.of(reader.getAttribute(dataset, attribute, long[].class)).asDoubleStream().toArray();
 		}
+	}
+
+	private static GsonBuilder defaultGsonBuilder()
+	{
+		return new GsonBuilder().setPrettyPrinting().disableHtmlEscaping();
 	}
 }

@@ -60,6 +60,6 @@ private fun <T> handleChannelDataset(
             downsamplingBlockSizes.map { it + intArrayOf(channelBlockSize) }.toTypedArray(),
             revertArrayAttributes)
 
-    datasetInfo.outputContainer.n5Writer(DEFAULT_BUILDER).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
+    datasetInfo.outputContainer.n5Writer(defaultGsonBuilder()).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
 
 }

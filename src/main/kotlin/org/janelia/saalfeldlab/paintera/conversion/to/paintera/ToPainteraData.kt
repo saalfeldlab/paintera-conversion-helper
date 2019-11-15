@@ -603,7 +603,7 @@ fun N5Reader.getDoubleArrayAttribute(dataset: String, attribute: String) = try {
 @Throws(IOException::class)
 fun N5Writer.setPainteraDataType(group: String, type: String) = setAttribute(group, PAINTERA_DATA_KEY, mapOf(Pair(TYPE_KEY, type)))
 
-val DEFAULT_BUILDER = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
+fun defaultGsonBuilder(): GsonBuilder = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
 
 const val LABEL_BLOCK_LOOKUP_KEY = "labelBlockLookup"
 

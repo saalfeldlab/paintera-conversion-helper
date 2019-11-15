@@ -69,7 +69,7 @@ fun <T> handleRawDataset(
         downsamplingBlockSizes: Array<IntArray>,
         overwriteExisiting: Boolean = false) where T : NativeType<T>, T : RealType<T> {
 
-    val writer = info.outputContainer.n5Writer(DEFAULT_BUILDER)
+    val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
     writer.createGroup(info.outputGroup)
 
     val dataGroup = Paths.get(info.outputGroup, "data").toString()
@@ -83,7 +83,7 @@ fun <T> handleRawDataset(
         N5ConvertSpark.convert<T, T>(sc,
                 N5ReaderSupplier { info.inputContainer.n5Reader() },
                 info.inputDataset,
-                N5WriterSupplier { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
+                N5WriterSupplier { info.outputContainer.n5Writer(defaultGsonBuilder()) },
                 outputDataset,
                 Optional.of(blockSize),
                 Optional.of(GzipCompression()), // TODO pass compression as parameter
@@ -99,7 +99,7 @@ fun <T> handleRawDataset(
 
         N5DownsamplerSpark.downsample<T>(
                 sc,
-                { N5FSWriter(info.outputContainer, DEFAULT_BUILDER) },
+                { N5FSWriter(info.outputContainer, defaultGsonBuilder()) },
                 "$dataGroup/s$scaleNum",
                 newScaleDataset,
                 scales[scaleNum],
