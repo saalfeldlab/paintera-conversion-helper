@@ -391,17 +391,22 @@ public class CommandLineConverter
 		writer.setAttribute(dataGroup, "multiScale", true);
 
 		final String outputDataset = Paths.get(dataGroup, "s0").toString();
-		N5ConvertSpark.convert(sc,
-				() -> N5Helpers.n5Reader(inputN5),
-				inputDataset,
-				() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
-				outputDataset,
-				Optional.of(blockSize),
-				Optional.of(new GzipCompression()), // TODO pass compression
-				// as parameter
-				Optional.ofNullable(null),
-				Optional.ofNullable(null),
-				false);
+
+		if (Paths.get(inputN5).equals(Paths.get(outputN5)) && Paths.get(inputDataset).equals(Paths.get(outputDataset))) {
+			LOG.info("Skip conversion of s0 because it is given as an input");
+		} else {
+			N5ConvertSpark.convert(sc,
+					() -> N5Helpers.n5Reader(inputN5),
+					inputDataset,
+					() -> new N5FSWriter(outputN5, DEFAULT_BUILDER),
+					outputDataset,
+					Optional.of(blockSize),
+					Optional.of(new GzipCompression()), // TODO pass compression
+					// as parameter
+					Optional.ofNullable(null),
+					Optional.ofNullable(null),
+					false);
+		}
 
 		final double[] downsamplingFactor = DoubleStream.generate(() -> 1.0).limit(blockSize.length).toArray();
 

@@ -77,16 +77,20 @@ fun <T> handleRawDataset(
     writer.setAttribute(dataGroup, "multiScale", true)
 
     val outputDataset = scaleGroup(info.outputGroup, 0).also { writer.createGroup(it) }
-    N5ConvertSpark.convert<T, T>(sc,
-            N5ReaderSupplier { info.inputContainer.n5Reader() },
-            info.inputDataset,
-            N5WriterSupplier { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
-            outputDataset,
-            Optional.of(blockSize),
-            Optional.of(GzipCompression()), // TODO pass compression as parameter
-            Optional.empty(),
-            Optional.empty(),
-            overwriteExisiting)
+    if (Paths.get(info.inputContainer) == Paths.get(info.outputContainer) && Paths.get(info.inputDataset) == Paths.get(outputDataset)) {
+        println("Skip conversion of s0 because it is given as an input")
+    } else {
+        N5ConvertSpark.convert<T, T>(sc,
+                N5ReaderSupplier { info.inputContainer.n5Reader() },
+                info.inputDataset,
+                N5WriterSupplier { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
+                outputDataset,
+                Optional.of(blockSize),
+                Optional.of(GzipCompression()), // TODO pass compression as parameter
+                Optional.empty(),
+                Optional.empty(),
+                overwriteExisiting)
+    }
 
     val downsamplingFactor = DoubleArray(blockSize.size) { 1.0 }
 
