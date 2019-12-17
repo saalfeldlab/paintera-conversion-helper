@@ -2,25 +2,16 @@ package org.janelia.saalfeldlab.paintera.conversion
 
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.CHANNEL_IDENTIFIER
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.LABEL_IDENTIFIER
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.RAW_IDENTIFIER
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.n5Reader
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.n5Writer
+import org.janelia.saalfeldlab.paintera.conversion.to.paintera.*
 import java.io.File
 import java.io.Serializable
+import java.nio.file.Paths
 
 data class DatasetInfo(
         val inputContainer: String,
         val inputDataset: String,
         val outputContainer: String,
         val outputGroup: String = inputDataset) : Serializable {
-    init {
-        // TODO should possibly also check if inputDataset is contained in outputGroup
-        require(inputContainer != outputContainer || inputDataset != outputGroup) {
-            "Output location and input location are identical: container=`$inputContainer' group=`$outputGroup'"
-        }
-    }
 
     val type: String
         get() {
@@ -58,8 +49,13 @@ data class DatasetInfo(
     fun ensureOutput(existOk: Boolean): Boolean {
         if (File(outputContainer).let { it.exists() && !it.isDirectory })
             throw OutputContainerIsFile(outputContainer)
-        if (!existOk && outputContainer.n5Writer().exists(outputGroup))
+        if (!existOk && !inputSameAsOutput() && outputContainer.n5Writer().exists(outputGroup))
             throw OutputDatasetExists(outputContainer, outputGroup)
         return true
+    }
+
+    fun inputSameAsOutput(): Boolean {
+        val outputDataset = scaleGroup(outputGroup, 0)
+        return Paths.get(inputContainer) == Paths.get(outputContainer) && Paths.get(inputDataset) == Paths.get(outputDataset)
     }
 }
