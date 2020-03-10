@@ -14,7 +14,7 @@ abstract class DatasetConverter(val info: DatasetInfo) {
 
 
         val downsamplingFactor = DoubleArray(parameters.blockSize.array.size) { 1.0 }
-        val writer = info.outputContainer.n5Writer(DEFAULT_BUILDER)
+        val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
         writer.setAttribute(scaleGroup(info.outputGroup, 0), DOWNSAMPLING_FACTORS, downsamplingFactor)
 
         for ((scaleNum, scale) in parameters.scales.withIndex()) {

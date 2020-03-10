@@ -106,7 +106,7 @@ private fun <I, O> handleLabelDataset(
         overwriteExisting: Boolean) where
         I: IntegerType<I>, I: NativeType<I>,
         O: IntegerType<O>, O: NativeType<O> {
-    val writer = info.outputContainer.n5Writer(DEFAULT_BUILDER)
+    val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
     writer.createGroup(info.outputGroup)
 
     val dataGroup = "${info.outputGroup}/data"
@@ -122,7 +122,7 @@ private fun <I, O> handleLabelDataset(
         N5ConvertSpark.convert<I, O>(sc,
                 N5ReaderSupplier { info.inputContainer.n5Reader() },
                 info.inputDataset,
-                N5WriterSupplier { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
+                N5WriterSupplier { info.outputContainer.n5Writer(defaultGsonBuilder()) },
                 originalResolutionOutputDataset,
                 Optional.of(initialBlockSize),
                 Optional.of(GzipCompression()), // TODO pass compression as parameter
@@ -135,7 +135,7 @@ private fun <I, O> handleLabelDataset(
 
             N5LabelDownsamplerSpark.downsampleLabel<O>(
                     sc,
-                    { info.outputContainer.n5Writer(DEFAULT_BUILDER) },
+                    { info.outputContainer.n5Writer(defaultGsonBuilder()) },
                     scaleGroup(dataGroup, scaleNum),
                     newScaleDataset,
                     scale,

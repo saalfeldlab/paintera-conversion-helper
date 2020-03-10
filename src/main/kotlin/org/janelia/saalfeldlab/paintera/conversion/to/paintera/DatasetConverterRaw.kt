@@ -69,7 +69,7 @@ fun <T> handleRawDataset(
         downsamplingBlockSizes: Array<IntArray>,
         overwriteExisiting: Boolean = false) where T : NativeType<T>, T : RealType<T> {
 
-    val writer = info.outputContainer.n5Writer(defaultBuilder())
+    val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
     writer.createGroup(info.outputGroup)
 
     val dataGroup = Paths.get(info.outputGroup, "data").toString()
@@ -77,16 +77,20 @@ fun <T> handleRawDataset(
     writer.setAttribute(dataGroup, "multiScale", true)
 
     val outputDataset = scaleGroup(info.outputGroup, 0).also { writer.createGroup(it) }
-    N5ConvertSpark.convert<T, T>(sc,
-            N5ReaderSupplier { info.inputContainer.n5Reader() },
-            info.inputDataset,
-            N5WriterSupplier { info.outputContainer.n5Writer(defaultBuilder()) },
-            outputDataset,
-            Optional.of(blockSize),
-            Optional.of(GzipCompression()), // TODO pass compression as parameter
-            Optional.empty(),
-            Optional.empty(),
-            overwriteExisiting)
+    if (info.inputSameAsOutput()) {
+        println("Skip conversion of s0 because it is given as an input")
+    } else {
+        N5ConvertSpark.convert<T, T>(sc,
+                N5ReaderSupplier { info.inputContainer.n5Reader() },
+                info.inputDataset,
+                N5WriterSupplier { info.outputContainer.n5Writer(defaultGsonBuilder()) },
+                outputDataset,
+                Optional.of(blockSize),
+                Optional.of(GzipCompression()), // TODO pass compression as parameter
+                Optional.empty(),
+                Optional.empty(),
+                overwriteExisiting)
+    }
 
     val downsamplingFactor = DoubleArray(blockSize.size) { 1.0 }
 
@@ -95,7 +99,7 @@ fun <T> handleRawDataset(
 
         N5DownsamplerSpark.downsample<T>(
                 sc,
-                { N5FSWriter(info.outputContainer, defaultBuilder()) },
+                { N5FSWriter(info.outputContainer, defaultGsonBuilder()) },
                 "$dataGroup/s$scaleNum",
                 newScaleDataset,
                 scales[scaleNum],

@@ -6,7 +6,6 @@ import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
-import org.janelia.saalfeldlab.conversion.IncompatibleChannelAxis
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
 import java.io.IOException
@@ -36,7 +35,7 @@ class DatasetConverterChannel(info: DatasetInfo) : DatasetConverter(info) {
 
 }
 
-@Throws(IOException::class, IncompatibleChannelAxis::class)
+@Throws(IOException::class)
 private fun <T> handleChannelDataset(
         sc: JavaSparkContext,
         datasetInfo: DatasetInfo,
@@ -60,6 +59,6 @@ private fun <T> handleChannelDataset(
             downsamplingBlockSizes.map { it + intArrayOf(channelBlockSize) }.toTypedArray(),
             revertArrayAttributes)
 
-    datasetInfo.outputContainer.n5Writer(DEFAULT_BUILDER).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
+    datasetInfo.outputContainer.n5Writer(defaultGsonBuilder()).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
 
 }
