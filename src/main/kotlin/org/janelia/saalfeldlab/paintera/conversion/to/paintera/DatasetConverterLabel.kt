@@ -131,12 +131,12 @@ private fun <I, O> handleLabelDataset(
                 overwriteExisting)
 
         for ((scaleNum, scale) in scales.withIndex()) {
-            val newScaleDataset = scaleGroup(dataGroup, scaleNum + 1)
+            val newScaleDataset = scaleGroup(info.outputGroup, scaleNum + 1)
 
             N5LabelDownsamplerSpark.downsampleLabel<O>(
                     sc,
                     { info.outputContainer.n5Writer(defaultGsonBuilder()) },
-                    scaleGroup(dataGroup, scaleNum),
+                    scaleGroup(info.outputGroup, scaleNum),
                     newScaleDataset,
                     scale,
                     downsampleBlockSizes[scaleNum])
