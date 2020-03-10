@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.conversion;
+package org.janelia.saalfeldlab.paintera.conversion;
 
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
@@ -14,6 +14,7 @@ import net.imglib2.view.Views;
 import org.apache.commons.io.FileUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset;
 import org.janelia.saalfeldlab.label.spark.N5Helpers;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;

@@ -1,19 +1,13 @@
-package org.janelia.saalfeldlab.conversion;
+package org.janelia.saalfeldlab.paintera.conversion;
 
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Optional;
 
-import org.janelia.saalfeldlab.label.spark.exception.InputSameAsOutput;
-import org.janelia.saalfeldlab.label.spark.exception.InvalidDataType;
-import org.janelia.saalfeldlab.label.spark.exception.InvalidDataset;
-import org.janelia.saalfeldlab.label.spark.exception.InvalidN5Container;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType;
+import org.janelia.saalfeldlab.n5.*;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.junit.Assert;
@@ -24,7 +18,7 @@ import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 
-public class CommandLineConverterTest {
+public class PainteraConvertTest {
 
     private static final long[] dimensions = {5, 4, 4};
 
@@ -60,7 +54,7 @@ public class CommandLineConverterTest {
 
     private final N5Writer container;
 
-    public CommandLineConverterTest() throws IOException {
+    public PainteraConvertTest() throws IOException {
         this.tmpDir = Files.createTempDirectory("command-line-converter-test").toString();
         this.container = new N5FSWriter(tmpDir);
             container.createDataset(LABEL_SOURCE_DATASET, dimensions, blockSize, DataType.UINT64, new RawCompression());
@@ -69,17 +63,21 @@ public class CommandLineConverterTest {
 
     @SuppressWarnings("unchecked")
 	@Test
-    public void testWinnerTakesAll() throws IOException, InvalidDataType, InvalidDataset, InputSameAsOutput, ConverterException, InvalidN5Container {
+    public void testWinnerTakesAll() throws IOException {
         final String labelTargetDataset = "volumes/labels-winner-takes-all";
         // TODO set spark master from outside, e.g. travis or in pom.xml
         System.setProperty("spark.master", "local[1]");
-        CommandLineConverter.run(
-                "-d", String.format("%s,%s,label,%s", tmpDir, LABEL_SOURCE_DATASET, labelTargetDataset),
-                "-s", "2",
-                String.format("--outputN5=%s", tmpDir),
-                "--winner-takes-all-downsampling",
-                "-b", String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2])
-        );
+        PainteraConvert.main(new String[] {
+                "to-paintera",
+                "--container=" + tmpDir,
+                "--output-container=" + tmpDir,
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=" + labelTargetDataset,
+                "--scale", "2",
+                "--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2]),
+                "--winner-takes-all-downsampling"
+        });
 
         Assert.assertTrue(container.exists(labelTargetDataset));
         Assert.assertTrue(container.exists(labelTargetDataset + "/data"));
@@ -119,16 +117,20 @@ public class CommandLineConverterTest {
     }
 
     @Test
-    public void testLabelMultisets() throws IOException, InvalidDataType, InvalidDataset, InputSameAsOutput, ConverterException, InvalidN5Container {
+    public void testLabelMultisets() throws IOException {
         final String labelTargetDataset = "volumes/labels-converted";
         // TODO set spark master from outside, e.g. travis or in pom.xml
         System.setProperty("spark.master", "local[1]");
-        CommandLineConverter.run(
-                "-d", String.format("%s,%s,label,%s", tmpDir, LABEL_SOURCE_DATASET, labelTargetDataset),
-                "-s", "2",
-                String.format("--outputN5=%s", tmpDir),
-                "-b", String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2])
-        );
+        PainteraConvert.main(new String[] {
+                "to-paintera",
+                "--container=" + tmpDir,
+                "--output-container=" + tmpDir,
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=" + labelTargetDataset,
+                "--scale", "2",
+                "--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2])
+        });
 
         Assert.assertTrue(container.exists(labelTargetDataset));
         Assert.assertTrue(container.exists(labelTargetDataset + "/data"));
@@ -145,8 +147,8 @@ public class CommandLineConverterTest {
         final DatasetAttributes attrsS1 = container.getDatasetAttributes(labelTargetDataset + "/data/s1");
         Assert.assertEquals(DataType.UINT8, attrsS0.getDataType());
         Assert.assertEquals(DataType.UINT8, attrsS1.getDataType());
-        Assert.assertTrue(CommandLineConverter.isLabelDataType(container, labelTargetDataset + "/data/s0"));
-        Assert.assertTrue(CommandLineConverter.isLabelDataType(container, labelTargetDataset + "/data/s1"));
+        Assert.assertTrue(isLabelDataType(container, labelTargetDataset + "/data/s0"));
+        Assert.assertTrue(isLabelDataType(container, labelTargetDataset + "/data/s1"));
         Assert.assertArrayEquals(blockSize, attrsS0.getBlockSize());
         Assert.assertArrayEquals(blockSize, attrsS1.getBlockSize());
         Assert.assertArrayEquals(dimensions, attrsS0.getDimensions());
@@ -172,5 +174,22 @@ public class CommandLineConverterTest {
 		        .setImages(s1ArgMax, N5LabelMultisets.openLabelMultiset(container, labelTargetDataset + "/data/s1"))
 		        .forEachPixel((e, a) ->
 		        	Assert.assertEquals(e.get(), a.argMax()));
+    }
+
+    private static boolean isLabelDataType( final N5Reader n5Reader, final String fullSubGroupName ) throws IOException
+    {
+        switch ( n5Reader.getDatasetAttributes( fullSubGroupName ).getDataType() )
+        {
+            case UINT8: // label if LMT, otherwise raw
+                return Optional.ofNullable( n5Reader.getAttribute( fullSubGroupName, ConvertToLabelMultisetType.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false );
+            case UINT64:
+            case UINT32:
+            case INT64:
+            case INT32:
+                return true; // these are all label types
+
+            default:
+                return false;
+        }
     }
 }
