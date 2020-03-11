@@ -38,26 +38,28 @@ This conversion tool currently supports any number of datasets (raw or label) wi
 single (global) block size, and will output to a single N5 group in a paintera-compatible
 format. For local spark usage, [install throguh conda or pip](#installation), and run:
 ```
-paintera-conversion-helper [...]
+paintera-convert to-paintera [...]
 ```
+
 Introduced in version `0.7.0`, the
 ```
-extract-to-scalar
+paintera-convert extract-to-scalar [...]
 ```
 extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details.
 
 ### Usage Example
 To convert the `raw` and `neuron_ids` datasets of [sample A of the cremi challenge](https://cremi.org/data/) into Paintera format with mipmaps on Linux, assuming that you downloaded the data into `$HOME/Downloads`, run:
 ```sh
-paintera-conversion-helper \
-    -r \
-    -d $HOME/Downloads/sample_A_padded_20160501.hdf,volumes/labels/neuron_ids,label \
-    -d $HOME/Downloads/sample_A_padded_20160501.hdf,volumes/raw,raw \
-    -o $HOME/Downloads/sample_A_padded_20160501.n5 \
-    -b 64,64,64 \
-    -s 2,2,1 2,2,1 2,2,1 2,2,2 2,2,2 2,2,2 \
-    -m -1 -1 4 2 \
-    --label-block-lookup-backend-n5=10000
+paintera-convert to-paintera \
+  --scale 2,2,1 2,2,1 2,2,1 2 2 \
+  --revert-array-attributes \
+  --output-container=paintera-converted.n5 \
+  --container=sample_A_20160501.hdf \
+    -d volumes/raw \
+      --target-dataset=volumes/raw2 \
+      --dataset-scale 3,3,1 3,3,1 2 2 \
+      --dataset-resolution 4,4,40.0 \
+    -d volumes/labels/neuron_ids
 ```
 
 or for a locally compiled fat jar:
@@ -68,46 +70,62 @@ with any desired command line arguments.
 
 ### Usage Help
 ```
-$ paintera-conversion-helper --help
-Usage: <main class> [-hr] [--winner-takes-all-downsampling]
-                    [--label-block-lookup-backend-n5=BLOCK_SIZE]
-                    [-c=<convertEntireContainer>] -o=<outputN5>
-                    [--offset=<offset>[,<offset>...]]...
-                    [--resolution=<resolution>[,<resolution>...]]...
-                    [-b=BLOCK_SIZE[,BLOCK_SIZE...]]... [-d=<datasets>]...
-                    [--downsample-block-sizes=<downsampleBlockSizes>...]...
-                    [-m=<maxNumEntries>...]... [-s=<scales>...]...
-      --downsample-block-sizes=<downsampleBlockSizes>...
-                             Block size for each downscaled level in the format bx,
-                               by,bz or b for isotropic block size. Does not need to
-                               be specified for each scale level (defaults to
-                               previous level if not specified, or BLOCK_SIZE if not
-                               specified at all)
-      --label-block-lookup-backend-n5=BLOCK_SIZE
-                             Use n5 as backend for label block lookup with specified
-                               BLOCK_SIZE.
-      --offset=<offset>[,<offset>...]
-                             Offset in world coordinates.
-      --resolution=<resolution>[,<resolution>...]
-                             Voxel size.
+$ paintera-convert to-paintera --help
+Usage: paintera-convert to-paintera [[--block-size=X,Y,Z|U] [--scale=X,Y,Z|U...] [--scale=X,Y,Z|U...]...
+                                    [--downsample-block-sizes=X,Y,Z|U...] [--downsample-block-sizes=X,Y,Z|U...]...
+                                    [--revert-array-attributes] [--resolution=X,Y,Z|U] [--offset=X,Y,Z|U] [-m=N...]
+                                    [-m=N...]... [--label-block-lookup-n5-block-size=N]
+                                    [--winner-takes-all-downsampling]] ([--container=CONTAINER] [] (-d=DATASET
+                                    [--target-dataset=TARGET_DATASET] [[--type=TYPE]   ])...)... [--overwrite-existing]
+                                    [--help] --output-container=OUTPUT_CONTAINER [--spark-master=<sparkMaster>]
+                                    
+
+Options:
+
+      --block-size=X,Y,Z|U   Use --container-block-size and --dataset-block-size for container and dataset specific
+                               block sizes, respectively.
+      --scale=X,Y,Z|U...     Relative downsampling factors for each level in the format x,y,z, where x,y,z are
+                               integers. Single integers u are interpreted as u,u,u.
+                             Use --container-scale and --dataset-scale for container and dataset specific scales,
+                               respectively.
+      --downsample-block-sizes=X,Y,Z|U...
+                             Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container
+                               and dataset specific block sizes, respectively.
+      --revert-array-attributes
+                             Revert array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].
+                             Use --container-revert-array-attributes and --dataset-revert-array-attributes for
+                               container and dataset specific setting, respectively.
+      --resolution=X,Y,Z|U   Specify resolution (overrides attributes of input datasets, if any).
+                             Use --container-resolution and --dataset-resolution for container and dataset specific
+                               resolution, respectively.
+      --offset=X,Y,Z|U       Specify offset (overrides attributes of input datasets, if any).
+                             Use --container-offset and --dataset-offset for container and dataset specific resolution,
+                               respectively.
+  -m, --max-num-entries=N... Limit number of entries for non-scalar label types by N. If N is negative, do not limit
+                               number of entries.  If fewer values than the number of down-sampling layers are
+                               provided, the missing values are copied from the last available entry.  If none are
+                               provided, default to -1 for all levels.
+                             Use --container-max-num-entries and --dataset-max-num-entries for container and dataset
+                               specific settings, respectively.
+      --label-block-lookup-n5-block-size=N
+                             Set the block size for the N5 container for the label-block-lookup.
+                             Use --container-label-block-lookup-n5-block-size and
+                               --dataset-label-block-lookup-n5-block-size for container and dataset specific settings,
+                               respectively.
       --winner-takes-all-downsampling
-                             Use winner-takes-all-downsampling for labels
-  -b, --blocksize=BLOCK_SIZE[,BLOCK_SIZE...]
-                             block size for initial conversion in the format bx,by,
-                               bz or b for isotropic block size. Defaults to 64,64,64
-  -c, --convert-entire-container=<convertEntireContainer>
-                             Convert entire container; auto-detect dataset types
-  -d, --dataset=<datasets>   Comma delimited description of dataset; <n5 root path>,
-                               <path/to/dataset>,<raw|label|channel[:
-                               channelAxis=<axis>][,optional name]
-  -h, --help                 display a help message
-  -m, --max-num-entries=<maxNumEntries>...
-                             max number of entries for each label multiset at each
-                               scale. Pick lower number for higher scale levels
-  -o, --outputN5=<outputN5>
-  -r, --revert               Reverts array attributes
-  -s, --scale=<scales>...    Factor by which to downscale the input image. Factors
-                               are relative to the previous level, not to level
-                               zero. Format either fx,fy,fz or f
+                             Use scalar label type with winner-takes-all downsampling.
+                             Use --container-winner-takes-all-downsampling and --dataset-winner-takes-all-downsampling
+                               for container and dataset specific settings, respectively.
+      --overwrite-existing
+      --output-container=OUTPUT_CONTAINER
+
+      --spark-master=<sparkMaster>
+
+      --container=CONTAINER
+  -d, --dataset=DATASET
+      --target-dataset=TARGET_DATASET
+
+      --type=TYPE
+      --help
 ```
 

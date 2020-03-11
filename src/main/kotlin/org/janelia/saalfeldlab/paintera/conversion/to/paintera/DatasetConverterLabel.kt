@@ -114,7 +114,8 @@ private fun <I, O> handleLabelDataset(
     writer.setAttribute(dataGroup, "multiScale", true)
     val originalResolutionOutputDataset = scaleGroup(info.outputGroup, 0)
     val uniqueLabelsGroup ="${info.outputGroup}/unique-labels"
-    val labelBlockMappingGroup = "${info.outputGroup}/label-to-block-mapping"
+    val labelBlockMappingGroupBasename = "label-to-block-mapping"
+    val labelBlockMappingGroup = "${info.outputGroup}/$labelBlockMappingGroupBasename"
     val labelBlockMappingGroupDirectory = File(labelBlockMappingGroup).absolutePath
 
     if (winnerTakesAll) {
@@ -130,12 +131,12 @@ private fun <I, O> handleLabelDataset(
                 overwriteExisting)
 
         for ((scaleNum, scale) in scales.withIndex()) {
-            val newScaleDataset = scaleGroup(dataGroup, scaleNum + 1)
+            val newScaleDataset = scaleGroup(info.outputGroup, scaleNum + 1)
 
             N5LabelDownsamplerSpark.downsampleLabel<O>(
                     sc,
                     { info.outputContainer.n5Writer(defaultGsonBuilder()) },
-                    scaleGroup(dataGroup, scaleNum),
+                    scaleGroup(info.outputGroup, scaleNum),
                     newScaleDataset,
                     scale,
                     downsampleBlockSizes[scaleNum])
@@ -181,7 +182,14 @@ private fun <I, O> handleLabelDataset(
     }
 
     if (labelBlockLookupN5BlockSize != null) {
-        LabelToBlockMapping.createMappingWithMultiscaleCheckN5(sc, info.outputContainer, uniqueLabelsGroup, info.outputContainer, labelBlockMappingGroup, labelBlockLookupN5BlockSize)
+        LabelToBlockMapping.createMappingWithMultiscaleCheckN5(
+                sc,
+                info.outputContainer,
+                uniqueLabelsGroup,
+                info.outputContainer,
+                info.outputGroup,
+                labelBlockMappingGroupBasename,
+                labelBlockLookupN5BlockSize)
 
     } else {
         LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer, uniqueLabelsGroup, labelBlockMappingGroupDirectory)
