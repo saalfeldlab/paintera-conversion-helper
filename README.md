@@ -24,10 +24,12 @@ To compile the conversion helper into a jar, simply run
 ```
 mvn -Denforcer.skip=true clean package
 ```
+
 To run locally build a fat jar including Spark:
 ```
 mvn -Denforcer.skip=true -PfatWithSpark clean package
 ```
+
 To run on the Janelia cluster build a fat jar without Spark:
 ```
 mvn -Denforcer.skip=true -Pfat clean package
@@ -46,6 +48,30 @@ Introduced in version `0.7.0`, the
 paintera-convert extract-to-scalar [...]
 ```
 extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details.
+
+
+### Janelia cluster
+
+Clone the repository with submodules:
+```
+git clone --recursive https://github.com/saalfeldlab/paintera-conversion-helper.git
+```
+If you have already cloned the repository, run this after cloning to fetch the submodules:
+```
+git submodule update --init --recursive
+```
+
+Then, run the following script to build the package:
+```
+./build-for-cluster.py
+```
+
+For submitting a job to the Janelia cluster you can use the following script:
+```
+startup-scripts/spark-janelia/convert.py  <number of cluster nodes>  <other parameters>
+```
+The first parameter is the number of cluster nodes to use (for example, 5), and the rest is the same parameters as in the `paintera-convert` command.
+
 
 ### Usage Example
 To convert the `raw` and `neuron_ids` datasets of [sample A of the cremi challenge](https://cremi.org/data/) into Paintera format with mipmaps on Linux, assuming that you downloaded the data into `$HOME/Downloads`, run:
