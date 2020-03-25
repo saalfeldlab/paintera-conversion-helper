@@ -38,7 +38,7 @@ mvn -Denforcer.skip=true -Pfat clean package
 ## Running
 This conversion tool currently supports any number of datasets (raw or label) with a
 single (global) block size, and will output to a single N5 group in a paintera-compatible
-format. For local spark usage, [install throguh conda or pip](#installation), and run:
+format. For local spark usage, [install through conda or pip](#installation), and run:
 ```
 paintera-convert to-paintera [...]
 ```
