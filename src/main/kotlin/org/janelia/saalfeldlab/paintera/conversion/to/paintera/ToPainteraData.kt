@@ -41,62 +41,62 @@ class ToPainteraData {
     }
 
     @CommandLine.Command(
-            name = "to-paintera",
-            sortOptions = false,
-            aliases = ["tp"],
-            usageHelpWidth = 120,
-            header = [
-                "" +
-                        "Converts arbitrary 3D label and single- or multi-channel raw datasets " +
-                        "in N5 or HDF5 containers into a Paintera-friendly format.  ",
-                ""],
-            description = [
-                "",
-                "" +
-                        "Converts arbitrary 3D label and single- or multi-channel raw datasets in N5 or HDF5 containers into a Paintera-friendly format (https://github.com/saalfeldlab/paintera#paintera-data-format).  " +
-                        "A Paintera-friendly format is a group (referred to as \"paintera group\" in the following) inside an N5 container with a multi-scale representation (mipmap pyramid) in the `data' sub-group. " +
-                        "The `data' sub-group contains datasets s0 ... sN, where s0 is the highest resolution dataset and sN is the lowest resolution (most downsampled) dataset.  " +
-                        "Each dataset sX has an attribute `\"downsamplingFactors\":[X, Y, Z]' relative to s0, e.g. `\"downsamplingFactors\":[16.0,16.0,2.0]'.  " +
-                        "If not specified, `\"downsamplingFactors\":[1.0, 1.0, 1.0]' is assumed (this makes sense only for s0).  " +
-                        "Unless the `--winner-takes-all-downsampling' option is specified, label data is converted and downsampled with a non-scalar summarizing label type (https://github.com/saalfeldlab/paintera#label-multisets).  " +
-                        "The highest resolution label dataset can be extracted as scalar UINT64 label type with the `to-scalar' sub-command.  " +
-                        "The paintera group has a \"painteraData\" attribute to specify the type of the dataset, i.e. `\"painteraData\":{\"type\":\"\$TYPE\"}', " +
-                        "where TYPE is one of {channel, label, raw}.",
-                "",
-                "" +
-                        "Label data paintera groups have additional sub-groups to store unique lists of label ids for each block (`unique-labels') per scale level, " +
-                        "an index of containing blocks for each label id (`label-to-block-mapping') per scale level, " +
-                        "and a lookup table for manual agglomeration of fragments (`fragment-segment-assignment').  " +
-                        "Currently, the lookup table cannot be provided during conversion and will be populated when using Paintera.  " +
-                        "A mandatory attribute `maxId' in the paintera group keeps track of the largest label id that has been used for a dataset.  " +
-                        "The `\"labelBlockLookup\"' attribute specifies the type of index stored in `label-to-block-mapping'.",
-                "",
-                "" +
-                        "Conversion options can be set at (a) the global level, (b) at the N5/HDF5 container level, or (c) at a dataset level.  " +
-                        "More specific options take precedence over more general option if specified, in particular (b) overrides (a) and (c) overrides (b).  " +
-                        "Options that override options set at a more general level are prefixed with `--container' and `--dataset' for (b) and (c), respectively.  " +
-                        "For example, the downsampling factors/scales can be set with the `--scale' option at the global level and overriden with the " +
-                        "`--container-scale' option at the container level or the `--dataset-scale' option at the dataset level.",
-                "",
-                "" +
-                        "The following parameters of conversion can be set at global, container, or dataset level:",
-                "",
-                "    Scales:  A list of 3-tuples of integers  or single integers that determine the downsampling and the number of mipmap levels.",
-                "    Block Size:  A 3-tuple of integers that specifies the block size of s0 data set that is being copied (or copy-converted). Defaults to (64, 64, 64)",
-                "    Downsampling block sizes:  A list of 3-tuples of integers that specify the block size at each scale level. " +
-                        "If fewer downsampling block sizes than scales are specified, the unspecified downsampling block sizes default to the block size of the lowest resolution dataset sN for which a block size is specified.",
-                "    Resolution:  3-tuple of floating point values to specify resolution (physical extent) of a voxel.  " +
-                        "Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available and not specified.",
-                "    Offset:  3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in some arbitrary coordinate space defined by the resolution.  " +
-                        "Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available and not specified.",
-                "    Revert array attributes:  Revert array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
-                "    Label only:",
-                "        Winner takes all downsampling:  Use scalar label type by assigning majority label to downsampled voxels instead of non-scalar label type (https://github.com/saalfeldlab/paintera#label-multisets).",
-                "        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
-                "",
-                "Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
-                "",
-                """
+        name = "to-paintera",
+        sortOptions = false,
+        aliases = ["tp"],
+        usageHelpWidth = 120,
+        header = [
+            "" +
+                    "Converts arbitrary 3D label and single- or multi-channel raw datasets " +
+                    "in N5 or HDF5 containers into a Paintera-friendly format.  ",
+            ""],
+        description = [
+            "",
+            "" +
+                    "Converts arbitrary 3D label and single- or multi-channel raw datasets in N5 or HDF5 containers into a Paintera-friendly format (https://github.com/saalfeldlab/paintera#paintera-data-format).  " +
+                    "A Paintera-friendly format is a group (referred to as \"paintera group\" in the following) inside an N5 container with a multi-scale representation (mipmap pyramid) in the `data' sub-group. " +
+                    "The `data' sub-group contains datasets s0 ... sN, where s0 is the highest resolution dataset and sN is the lowest resolution (most downsampled) dataset.  " +
+                    "Each dataset sX has an attribute `\"downsamplingFactors\":[X, Y, Z]' relative to s0, e.g. `\"downsamplingFactors\":[16.0,16.0,2.0]'.  " +
+                    "If not specified, `\"downsamplingFactors\":[1.0, 1.0, 1.0]' is assumed (this makes sense only for s0).  " +
+                    "Unless the `--winner-takes-all-downsampling' option is specified, label data is converted and downsampled with a non-scalar summarizing label type (https://github.com/saalfeldlab/paintera#label-multisets).  " +
+                    "The highest resolution label dataset can be extracted as scalar UINT64 label type with the `to-scalar' sub-command.  " +
+                    "The paintera group has a \"painteraData\" attribute to specify the type of the dataset, i.e. `\"painteraData\":{\"type\":\"\$TYPE\"}', " +
+                    "where TYPE is one of {channel, label, raw}.",
+            "",
+            "" +
+                    "Label data paintera groups have additional sub-groups to store unique lists of label ids for each block (`unique-labels') per scale level, " +
+                    "an index of containing blocks for each label id (`label-to-block-mapping') per scale level, " +
+                    "and a lookup table for manual agglomeration of fragments (`fragment-segment-assignment').  " +
+                    "Currently, the lookup table cannot be provided during conversion and will be populated when using Paintera.  " +
+                    "A mandatory attribute `maxId' in the paintera group keeps track of the largest label id that has been used for a dataset.  " +
+                    "The `\"labelBlockLookup\"' attribute specifies the type of index stored in `label-to-block-mapping'.",
+            "",
+            "" +
+                    "Conversion options can be set at (a) the global level, (b) at the N5/HDF5 container level, or (c) at a dataset level.  " +
+                    "More specific options take precedence over more general option if specified, in particular (b) overrides (a) and (c) overrides (b).  " +
+                    "Options that override options set at a more general level are prefixed with `--container' and `--dataset' for (b) and (c), respectively.  " +
+                    "For example, the downsampling factors/scales can be set with the `--scale' option at the global level and overriden with the " +
+                    "`--container-scale' option at the container level or the `--dataset-scale' option at the dataset level.",
+            "",
+            "" +
+                    "The following parameters of conversion can be set at global, container, or dataset level:",
+            "",
+            "    Scales:  A list of 3-tuples of integers  or single integers that determine the downsampling and the number of mipmap levels.",
+            "    Block Size:  A 3-tuple of integers that specifies the block size of s0 data set that is being copied (or copy-converted). Defaults to (64, 64, 64)",
+            "    Downsampling block sizes:  A list of 3-tuples of integers that specify the block size at each scale level. " +
+                    "If fewer downsampling block sizes than scales are specified, the unspecified downsampling block sizes default to the block size of the lowest resolution dataset sN for which a block size is specified.",
+            "    Resolution:  3-tuple of floating point values to specify resolution (physical extent) of a voxel.  " +
+                    "Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available and not specified.",
+            "    Offset:  3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in some arbitrary coordinate space defined by the resolution.  " +
+                    "Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available and not specified.",
+            "    Revert array attributes:  Revert array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
+            "    Label only:",
+            "        Winner takes all downsampling:  Use scalar label type by assigning majority label to downsampled voxels instead of non-scalar label type (https://github.com/saalfeldlab/paintera#label-multisets).",
+            "        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
+            "",
+            "Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
+            "",
+            """
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
   --revert-array-attributes \
@@ -108,9 +108,10 @@ paintera-convert to-paintera \
       --dataset-resolution 4,4,40.0 \
     -d volumes/labels/neuron_ids
 """,
-                "",
-                "Options:",
-                ""])
+            "",
+            "Options:",
+            ""]
+    )
     class Parameters : Callable<Int> {
         @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1")
         var parameters: GlobalParameters = GlobalParameters()
@@ -122,8 +123,9 @@ paintera-convert to-paintera \
         lateinit var _outputContainer: String
 
         @CommandLine.Option(
-                names = ["--spark-master"],
-                required = false)
+            names = ["--spark-master"],
+            required = false
+        )
         var sparkMaster: String? = null
 
         @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
@@ -150,16 +152,18 @@ paintera-convert to-paintera \
                 container.call()
                 for (dataset in container.datasets) {
                     val info = DatasetInfo(
-                            inputContainer = container.container.absolutePath,
-                            inputDataset = dataset.dataset,
-                            outputContainer = outputContainer,
-                            outputGroup = dataset.targetDataset)
+                        inputContainer = container.container.absolutePath,
+                        inputDataset = dataset.dataset,
+                        outputContainer = outputContainer,
+                        outputGroup = dataset.targetDataset
+                    )
                     try {
                         info.ensureInput()
                         info.ensureOutput(overwriteExisting)
                         if (info in datasets)
                             throw ConversionException("Dataset specified multiple times: `$info'")
-                        val converter = DatasetConverter[info, dataset.parameters.type ?: info.type] ?: throw ConversionException("Do not know how to convert dataset of type `${dataset.parameters.type}': `$info'")
+                        val converter = DatasetConverter[info, dataset.parameters.type ?: info.type]
+                            ?: throw ConversionException("Do not know how to convert dataset of type `${dataset.parameters.type}': `$info'")
                         datasets[info] = Pair(converter, dataset.parameters)
                     } catch (e: ConversionException) {
                         exceptions += e
@@ -207,85 +211,94 @@ paintera-convert to-paintera \
 class GlobalParameters : Callable<Unit> {
     // TODO use custom class instead of IntArray
     @CommandLine.Option(
-            names = ["--block-size"],
-            description = ["Use --container-block-size and --dataset-block-size for container and dataset specific block sizes, respectively."],
-            paramLabel = SpatialIntArray.PARAM_LABEL,
-            defaultValue = "64,64,64",
-            converter = [SpatialIntArray.Converter::class])
+        names = ["--block-size"],
+        description = ["Use --container-block-size and --dataset-block-size for container and dataset specific block sizes, respectively."],
+        paramLabel = SpatialIntArray.PARAM_LABEL,
+        defaultValue = "64,64,64",
+        converter = [SpatialIntArray.Converter::class]
+    )
     private lateinit var _blockSize: SpatialIntArray
 
     @CommandLine.Option(
-            names =  ["--scale"],
-            arity = "1..*",
-            description = [
-                "Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
-                "Use --container-scale and --dataset-scale for container and dataset specific scales, respectively."],
-            converter = [SpatialIntArray.Converter::class],
-            paramLabel = SpatialIntArray.PARAM_LABEL)
+        names = ["--scale"],
+        arity = "1..*",
+        description = [
+            "Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
+            "Use --container-scale and --dataset-scale for container and dataset specific scales, respectively."],
+        converter = [SpatialIntArray.Converter::class],
+        paramLabel = SpatialIntArray.PARAM_LABEL
+    )
     private lateinit var _scales: Array<SpatialIntArray>
 
     @CommandLine.Option(
-            names = ["--downsample-block-sizes"],
-            description = ["Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container and dataset specific block sizes, respectively."],
-            arity = "1..*",
-            converter = [SpatialIntArray.Converter::class],
-            paramLabel = SpatialIntArray.PARAM_LABEL)
+        names = ["--downsample-block-sizes"],
+        description = ["Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container and dataset specific block sizes, respectively."],
+        arity = "1..*",
+        converter = [SpatialIntArray.Converter::class],
+        paramLabel = SpatialIntArray.PARAM_LABEL
+    )
     private lateinit var _downsamplingBlockSizes: Array<SpatialIntArray>
 
     @CommandLine.Option(
-            names = ["--revert-array-attributes"],
-            description = [
-                "Revert array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].",
-                "Use --container-revert-array-attributes and --dataset-revert-array-attributes for container and dataset specific setting, respectively."],
-            defaultValue = "false")
+        names = ["--revert-array-attributes"],
+        description = [
+            "Revert array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].",
+            "Use --container-revert-array-attributes and --dataset-revert-array-attributes for container and dataset specific setting, respectively."],
+        defaultValue = "false"
+    )
     var revertArrayAttributes: Boolean = false
 
     @CommandLine.Option(
-            names = ["--resolution"],
-            description = [
-                "Specify resolution (overrides attributes of input datasets, if any).",
-                "Use --container-resolution and --dataset-resolution for container and dataset specific resolution, respectively."],
-            converter = [SpatialDoubleArray.Converter::class], 
-            paramLabel = SpatialDoubleArray.PARAM_LABEL)
+        names = ["--resolution"],
+        description = [
+            "Specify resolution (overrides attributes of input datasets, if any).",
+            "Use --container-resolution and --dataset-resolution for container and dataset specific resolution, respectively."],
+        converter = [SpatialDoubleArray.Converter::class],
+        paramLabel = SpatialDoubleArray.PARAM_LABEL
+    )
     var resolution: SpatialDoubleArray? = null
 
     @CommandLine.Option(
-            names = ["--offset"],
-            description = [
-                "Specify offset (overrides attributes of input datasets, if any).",
-                "Use --container-offset and --dataset-offset for container and dataset specific resolution, respectively."],
-            converter = [SpatialDoubleArray.Converter::class],
-            paramLabel = SpatialDoubleArray.PARAM_LABEL)
+        names = ["--offset"],
+        description = [
+            "Specify offset (overrides attributes of input datasets, if any).",
+            "Use --container-offset and --dataset-offset for container and dataset specific resolution, respectively."],
+        converter = [SpatialDoubleArray.Converter::class],
+        paramLabel = SpatialDoubleArray.PARAM_LABEL
+    )
     var offset: SpatialDoubleArray? = null
 
     @CommandLine.Option(
-            names = ["--max-num-entries", "-m"],
-            description = [
-                "" +
-                        "Limit number of entries for non-scalar label types by N. If N is negative, do not limit number of entries.  " +
-                        "If fewer values than the number of down-sampling layers are provided, the missing values are copied from the " +
-                        "last available entry.  If none are provided, default to -1 for all levels.",
-                "Use --container-max-num-entries and --dataset-max-num-entries for container and dataset specific settings, respectively."],
-            arity = "1..*", 
-            paramLabel = "N")
+        names = ["--max-num-entries", "-m"],
+        description = [
+            "" +
+                    "Limit number of entries for non-scalar label types by N. If N is negative, do not limit number of entries.  " +
+                    "If fewer values than the number of down-sampling layers are provided, the missing values are copied from the " +
+                    "last available entry.  If none are provided, default to -1 for all levels.",
+            "Use --container-max-num-entries and --dataset-max-num-entries for container and dataset specific settings, respectively."],
+        arity = "1..*",
+        paramLabel = "N"
+    )
     private var _maxNumEntries: IntArray? = null
 
     @CommandLine.Option(
-            names = ["--label-block-lookup-n5-block-size"],
-            description = [
-                "Set the block size for the N5 container for the label-block-lookup.",
-                "Use --container-label-block-lookup-n5-block-size and --dataset-label-block-lookup-n5-block-size for container and dataset specific settings, respectively."],
-            defaultValue = "10000",
-            paramLabel = "N")
+        names = ["--label-block-lookup-n5-block-size"],
+        description = [
+            "Set the block size for the N5 container for the label-block-lookup.",
+            "Use --container-label-block-lookup-n5-block-size and --dataset-label-block-lookup-n5-block-size for container and dataset specific settings, respectively."],
+        defaultValue = "10000",
+        paramLabel = "N"
+    )
     var labelBlockLookupN5BlockSize: Int = 10000
         private set
 
     @CommandLine.Option(
-            names = ["--winner-takes-all-downsampling"],
-            description = [
-                "Use scalar label type with winner-takes-all downsampling.",
-                "Use --container-winner-takes-all-downsampling and --dataset-winner-takes-all-downsampling for container and dataset specific settings, respectively."],
-            defaultValue = "false")
+        names = ["--winner-takes-all-downsampling"],
+        description = [
+            "Use scalar label type with winner-takes-all downsampling.",
+            "Use --container-winner-takes-all-downsampling and --dataset-winner-takes-all-downsampling for container and dataset specific settings, respectively."],
+        defaultValue = "false"
+    )
     var winnerTakesAllDownsampling: Boolean = false
         private set
 
@@ -368,37 +381,50 @@ class ContainerSpecificParameters {
     }
 
     @CommandLine.Option(
-            names = ["--container-block-size"],
-            hidden = true,
-            paramLabel = SpatialIntArray.PARAM_LABEL,
-            defaultValue = "64,64,64",
-            converter = [SpatialIntArray.Converter::class])
+        names = ["--container-block-size"],
+        hidden = true,
+        paramLabel = SpatialIntArray.PARAM_LABEL,
+        defaultValue = "64,64,64",
+        converter = [SpatialIntArray.Converter::class]
+    )
     private var _blockSize: SpatialIntArray? = null
 
     @CommandLine.Option(
-            names =  ["--container-scale"],
-            hidden = true,
-            arity = "1..*",
-            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
-            converter = [SpatialIntArray.Converter::class],
-            paramLabel = SpatialIntArray.PARAM_LABEL)
+        names = ["--container-scale"],
+        hidden = true,
+        arity = "1..*",
+        description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+        converter = [SpatialIntArray.Converter::class],
+        paramLabel = SpatialIntArray.PARAM_LABEL
+    )
     private var _scales: Array<SpatialIntArray>? = null
 
     @CommandLine.Option(
-            names = ["--container-downsample-block-sizes"],
-            hidden = true,
-            arity = "1..*",
-            converter = [SpatialIntArray.Converter::class],
-            paramLabel = SpatialIntArray.PARAM_LABEL)
+        names = ["--container-downsample-block-sizes"],
+        hidden = true,
+        arity = "1..*",
+        converter = [SpatialIntArray.Converter::class],
+        paramLabel = SpatialIntArray.PARAM_LABEL
+    )
     private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
     @CommandLine.Option(names = ["--container-revert-array-attributes"], hidden = true)
     private var _revertArrayAttributes: Boolean? = null
 
-    @CommandLine.Option(names = ["--container-resolution"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(
+        names = ["--container-resolution"],
+        hidden = true,
+        converter = [SpatialDoubleArray.Converter::class],
+        paramLabel = SpatialDoubleArray.PARAM_LABEL
+    )
     private var _resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--container-offset"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(
+        names = ["--container-offset"],
+        hidden = true,
+        converter = [SpatialDoubleArray.Converter::class],
+        paramLabel = SpatialDoubleArray.PARAM_LABEL
+    )
     private var _offset: SpatialDoubleArray? = null
 
     @CommandLine.Option(names = ["--container-max-num-entries"], hidden = true, arity = "1..*", paramLabel = "N")
@@ -421,8 +447,8 @@ class ContainerSpecificParameters {
 
     val downsamplingBlockSizes: Array<SpatialIntArray>
         get() = fillUpTo((_downsamplingBlockSizes
-                ?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
-                ?: arrayOf(blockSize), numScales)
+            ?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
+            ?: arrayOf(blockSize), numScales)
 
     val revertArrayAttributes: Boolean
         get() = _revertArrayAttributes ?: globalParameters.revertArrayAttributes
@@ -456,37 +482,50 @@ class DatasetSpecificParameters {
     }
 
     @CommandLine.Option(
-            names = ["--dataset-block-size"],
-            hidden = true,
-            paramLabel = SpatialIntArray.PARAM_LABEL,
-            converter = [SpatialIntArray.Converter::class])
+        names = ["--dataset-block-size"],
+        hidden = true,
+        paramLabel = SpatialIntArray.PARAM_LABEL,
+        converter = [SpatialIntArray.Converter::class]
+    )
     private var _blockSize: SpatialIntArray? = null
 
     @CommandLine.Option(
-            names =  ["--dataset-scale"],
-            hidden = true,
-            arity = "1..*",
-            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
-            converter = [SpatialIntArray.Converter::class],
-            paramLabel = SpatialIntArray.PARAM_LABEL)
+        names = ["--dataset-scale"],
+        hidden = true,
+        arity = "1..*",
+        description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+        converter = [SpatialIntArray.Converter::class],
+        paramLabel = SpatialIntArray.PARAM_LABEL
+    )
     private var _scales: Array<SpatialIntArray>? = null
 
     @CommandLine.Option(
-            names = ["--dataset-downsample-block-sizes"],
-            hidden = true,
-            arity = "1..*",
-            description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
-            converter = [SpatialIntArray.Converter::class],
-            paramLabel = SpatialIntArray.PARAM_LABEL)
+        names = ["--dataset-downsample-block-sizes"],
+        hidden = true,
+        arity = "1..*",
+        description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+        converter = [SpatialIntArray.Converter::class],
+        paramLabel = SpatialIntArray.PARAM_LABEL
+    )
     private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
     @CommandLine.Option(names = ["--dataset-revert-array-attributes"], hidden = true)
     private var _revertArrayAttributes: Boolean? = null
 
-    @CommandLine.Option(names = ["--dataset-resolution"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(
+        names = ["--dataset-resolution"],
+        hidden = true,
+        converter = [SpatialDoubleArray.Converter::class],
+        paramLabel = SpatialDoubleArray.PARAM_LABEL
+    )
     private var _resolution: SpatialDoubleArray? = null
 
-    @CommandLine.Option(names = ["--dataset-offset"], hidden = true, converter = [SpatialDoubleArray.Converter::class], paramLabel = SpatialDoubleArray.PARAM_LABEL)
+    @CommandLine.Option(
+        names = ["--dataset-offset"],
+        hidden = true,
+        converter = [SpatialDoubleArray.Converter::class],
+        paramLabel = SpatialDoubleArray.PARAM_LABEL
+    )
     private var _offset: SpatialDoubleArray? = null
 
     @CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false, paramLabel = "TYPE")
@@ -512,8 +551,8 @@ class DatasetSpecificParameters {
 
     val downsamplingBlockSizes: Array<SpatialIntArray>
         get() = fillUpTo((_downsamplingBlockSizes
-                ?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
-                ?: arrayOf(blockSize), numScales)
+            ?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
+            ?: arrayOf(blockSize), numScales)
 
     val revertArrayAttributes: Boolean
         get() = _revertArrayAttributes ?: containerParameters.revertArrayAttributes
@@ -541,9 +580,9 @@ class DatasetSpecificParameters {
 
 }
 
-class SpatialIntArray (private val x: Int, private val y: Int, private val z: Int) {
+class SpatialIntArray(private val x: Int, private val y: Int, private val z: Int) {
 
-    constructor(u: Int): this(u, u, u)
+    constructor(u: Int) : this(u, u, u)
 
     val array: IntArray
         get() = intArrayOf(x, y, z)
@@ -565,9 +604,9 @@ class SpatialIntArray (private val x: Int, private val y: Int, private val z: In
     }
 }
 
-class SpatialDoubleArray (private val x: Double, private val y: Double, private val z: Double) {
+class SpatialDoubleArray(private val x: Double, private val y: Double, private val z: Double) {
 
-    constructor(u: Double): this(u, u, u)
+    constructor(u: Double) : this(u, u, u)
 
     val array: DoubleArray
         get() = doubleArrayOf(x, y, z)
