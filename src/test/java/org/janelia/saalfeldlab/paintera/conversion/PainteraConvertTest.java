@@ -1,22 +1,26 @@
 package org.janelia.saalfeldlab.paintera.conversion;
 
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Optional;
-
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.loops.LoopBuilder;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType;
-import org.janelia.saalfeldlab.n5.*;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.loops.LoopBuilder;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Optional;
 
 public class PainteraConvertTest {
 
@@ -174,6 +178,20 @@ public class PainteraConvertTest {
 		        .setImages(s1ArgMax, N5LabelMultisets.openLabelMultiset(container, labelTargetDataset + "/data/s1"))
 		        .forEachPixel((e, a) ->
 		        	Assert.assertEquals(e.get(), a.argMax()));
+
+        /* Now test to-scalar, and ensure we can convert back. */
+        final String scalarTargetDataset = "volumes/labels-back-to-scalar";
+        PainteraConvert.main(new String[]{
+                "to-scalar",
+                "-i", tmpDir,
+                "-I", labelTargetDataset,
+                "-o", tmpDir,
+                "-O", scalarTargetDataset});
+
+        final CachedCellImg<UnsignedLongType, ?> toScalar = N5Utils.open(container, scalarTargetDataset);
+        LoopBuilder
+                .setImages(LABELS, toScalar)
+                .forEachPixel((e, a) -> Assert.assertTrue(e.valueEquals(a)));
     }
 
     private static boolean isLabelDataType( final N5Reader n5Reader, final String fullSubGroupName ) throws IOException
