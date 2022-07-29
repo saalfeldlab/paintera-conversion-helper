@@ -27,7 +27,7 @@ class DatasetConverterChannel(info: DatasetInfo) : DatasetConverter(info) {
             DataType.UINT64 -> handleChannelDataset<UnsignedLongType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
             DataType.FLOAT32 -> handleChannelDataset<FloatType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
             DataType.FLOAT64 -> handleChannelDataset<DoubleType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
-            null -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
+            else -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
         }
     }
 
