@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.conversion
 
-import org.janelia.saalfeldlab.paintera.conversion.to.scalar.ToScalar
 import org.janelia.saalfeldlab.paintera.conversion.to.paintera.ToPainteraData
+import org.janelia.saalfeldlab.paintera.conversion.to.scalar.ToScalar
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.lang.invoke.MethodHandles
@@ -10,10 +10,11 @@ import kotlin.system.exitProcess
 
 
 @CommandLine.Command(
-        name = "paintera-convert",
-        subcommands = [
-            ToPainteraData.Parameters::class,
-            ToScalar::class])
+    name = "paintera-convert",
+    subcommands = [
+        ToPainteraData.Parameters::class,
+        ToScalar::class]
+)
 class PainteraConvert : Callable<Unit> {
 
     @CommandLine.Option(names = ["--help"], help = true, usageHelp = true)
