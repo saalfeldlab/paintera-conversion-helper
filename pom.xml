@@ -86,8 +86,8 @@
 
 
     <ciManagement>
-        <system>Travis CI</system>
-        <url>https://travis-ci.org/saalfeldlab/paintera-conversion-helper</url>
+        <system>GitHub Actions</system>
+        <url>https://github.com/saalfeldlab/paintera-conversion-helper/actions</url>
     </ciManagement>
 
     <scm>
