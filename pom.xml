@@ -32,7 +32,7 @@
         <license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 
         <!-- NB: Deploy releases to the SciJava Maven repository. -->
-        <releaseProfiles>deploy-to-scijava</releaseProfiles>
+        <releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
         <package-name>org.janelia.saalfeldlab.conversion</package-name>
 
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
