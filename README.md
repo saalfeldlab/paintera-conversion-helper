@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/saalfeldlab/paintera-conversion-helper.svg?branch=master)](https://travis-ci.com/saalfeldlab/paintera-conversion-helper)
+[![Build Status](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml)
 
 # Paintera Conversion Helper
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
