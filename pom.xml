@@ -8,7 +8,7 @@
 
     <groupId>org.janelia.saalfeldlab</groupId>
     <artifactId>paintera-conversion-helper</artifactId>
-    <version>0.10.1-SNAPSHOT</version>
+    <version>0.10.1</version>
 
     <name>Paintera-Conversion-Helper</name>
     <description>Command line helper to convert datasets to be paintera friendly.</description>
@@ -48,7 +48,7 @@
             <id>hanslovsky</id>
             <name>Philipp Hanslovsky</name>
             <email>hanslovskyp@janelia.hhmi.org</email>
-            <url/>
+            <url />
             <organization>HHMI Janelia</organization>
             <organizationUrl>https://janelia.org/</organizationUrl>
             <roles>
@@ -63,7 +63,7 @@
             <id>nthistle</id>
             <name>Neil Thistlethwaite</name>
             <email>thistlethwaiten@janelia.hhmi.org</email>
-            <url/>
+            <url />
             <organization>HHMI Janelia</organization>
             <organizationUrl>https://janelia.org/</organizationUrl>
             <roles>
@@ -75,7 +75,7 @@
             <id>hulbertc</id>
             <name>Caleb Hulbert</name>
             <email>hulbertc@janelia.hhmi.org</email>
-            <url/>
+            <url />
             <organization>HHMI Janelia</organization>
             <organizationUrl>https://janelia.org/</organizationUrl>
             <roles>
@@ -106,7 +106,7 @@
     <scm>
         <connection>scm:git:git://github.com/saalfeldlab/paintera-conversion-helper</connection>
         <developerConnection>scm:git:git@github.com:saalfeldlab/paintera-conversion-helper.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>paintera-conversion-helper-0.10.1</tag>
         <url>https://github.com/saalfeldlab/paintera-conversion-helper</url>
     </scm>
 
