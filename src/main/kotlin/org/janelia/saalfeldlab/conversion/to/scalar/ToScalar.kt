@@ -4,7 +4,7 @@ import gnu.trove.map.TLongLongMap
 import gnu.trove.map.hash.TLongLongHashMap
 import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
-import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset
+import org.janelia.saalfeldlab.conversion.*
 import org.janelia.saalfeldlab.label.spark.N5Helpers
 import org.janelia.saalfeldlab.paintera.conversion.*
 import picocli.CommandLine

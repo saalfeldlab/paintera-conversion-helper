@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.conversion.to.paintera
+package org.janelia.saalfeldlab.conversion.to.paintera
 
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
@@ -8,12 +8,12 @@ import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
-import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
-import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.DatasetInfo
+import org.janelia.saalfeldlab.n5.universe.N5Factory
 import java.io.IOException
 import java.nio.file.Paths
 import java.util.Optional
@@ -104,7 +104,11 @@ fun <T> handleRawDataset(
 
         N5DownsamplerSpark.downsample<T>(
             sc,
-            { N5FSWriter(info.outputContainer, defaultGsonBuilder()) },
+            {
+                val factory = N5Factory()
+                factory.gsonBuilder(defaultGsonBuilder())
+                factory.openWriter(info.outputContainer)
+            },
             "$dataGroup/s$scaleNum",
             newScaleDataset,
             scales[scaleNum],

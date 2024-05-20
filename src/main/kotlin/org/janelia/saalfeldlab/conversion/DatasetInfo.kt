@@ -1,8 +1,8 @@
-package org.janelia.saalfeldlab.paintera.conversion
+package org.janelia.saalfeldlab.conversion
 
+import org.janelia.saalfeldlab.conversion.to.paintera.*
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.*
 import java.io.File
 import java.io.Serializable
 import java.nio.file.Paths

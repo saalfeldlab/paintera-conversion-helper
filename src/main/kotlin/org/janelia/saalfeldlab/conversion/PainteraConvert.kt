@@ -1,10 +1,8 @@
-package org.janelia.saalfeldlab.paintera.conversion
+package org.janelia.saalfeldlab.conversion
 
-import org.janelia.saalfeldlab.paintera.conversion.to.paintera.ToPainteraData
+import org.janelia.saalfeldlab.conversion.to.paintera.ToPainteraData
 import org.janelia.saalfeldlab.paintera.conversion.to.scalar.ToScalar
-import org.slf4j.LoggerFactory
 import picocli.CommandLine
-import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
 import kotlin.system.exitProcess
 
@@ -62,8 +60,6 @@ class PainteraConvert : Callable<Unit> {
         const val EXIT_CODE_INVALID_INPUT = 255
         const val EXIT_CODE_EXECUTION_EXCEPTION = 254
         const val EXIT_CODE_NO_SUBCOMMAND = 253
-
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
     }
 

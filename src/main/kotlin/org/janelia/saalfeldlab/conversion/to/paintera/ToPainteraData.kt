@@ -1,17 +1,17 @@
-package org.janelia.saalfeldlab.paintera.conversion.to.paintera
+package org.janelia.saalfeldlab.conversion.to.paintera
 
 import com.google.gson.GsonBuilder
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.apache.ivy.core.IvyPatternHelper.TYPE_KEY
 import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
-import org.janelia.saalfeldlab.label.spark.N5Helpers
-import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.paintera.conversion.ConversionException
-import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
-import org.janelia.saalfeldlab.paintera.conversion.NoSparkMasterSpecified
-import org.janelia.saalfeldlab.paintera.conversion.PainteraConvert
-import org.slf4j.LoggerFactory
+import org.janelia.saalfeldlab.n5.universe.N5Factory
+import org.janelia.saalfeldlab.conversion.ConversionException
+import org.janelia.saalfeldlab.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.NoSparkMasterSpecified
+import org.janelia.saalfeldlab.conversion.PainteraConvert
 import picocli.CommandLine
 import java.io.File
 import java.io.IOException
@@ -23,7 +23,7 @@ class ToPainteraData {
 
     companion object {
 
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+        private val LOG = KotlinLogging.logger {  }
 
         @JvmStatic
         fun main(argv: Array<String>) {
@@ -172,8 +172,8 @@ paintera-convert to-paintera \
             }
 
             if (exceptions.isNotEmpty()) {
-                System.err.println("Invalid options:")
-                exceptions.forEach { System.err.println(it.message) }
+                LOG.error(exceptions[0]) { "Invalid options" }
+                exceptions.forEach { LOG.error { it.message } }
                 return exceptions[0].exitCode
             }
 
@@ -197,7 +197,7 @@ paintera-convert to-paintera \
                 System.err.println(conversionError.message)
                 conversionError.exitCode
             } catch (error: Exception) {
-                System.err.println("Unable to convert into Paintera dataset: ${error.message}")
+                LOG.error("Unable to convert into Paintera dataset",  error)
                 PainteraConvert.EXIT_CODE_EXECUTION_EXCEPTION
             }
 
@@ -629,9 +629,14 @@ class SpatialDoubleArray(private val x: Double, private val y: Double, private v
 }
 
 
-fun String.n5Reader() = N5Helpers.n5Reader(this)
+internal fun String.n5Reader() = N5Factory.createReader(this)
 
-fun String.n5Writer(builder: GsonBuilder? = null) = builder?.let { N5FSWriter(this, it) } ?: N5FSWriter(this)
+internal fun String.n5Writer(builder: GsonBuilder? = null) = builder?.let {
+    N5Factory().let { factory ->
+        factory.gsonBuilder(builder)
+        factory.openWriter(this)
+    }
+} ?: N5Factory.createWriter(this)
 
 fun N5Reader.getDoubleArrayAttribute(dataset: String, attribute: String) = try {
     getAttribute(dataset, attribute, DoubleArray::class.java)

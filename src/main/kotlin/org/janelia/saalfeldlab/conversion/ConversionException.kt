@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.conversion
+package org.janelia.saalfeldlab.conversion
 
 open class ConversionException(val exitCode: Int, message: String? = null, cause: Throwable? = null) : Exception(message, cause) {
 	constructor(message: String? = null, cause: Throwable? = null) : this(255, message, cause)

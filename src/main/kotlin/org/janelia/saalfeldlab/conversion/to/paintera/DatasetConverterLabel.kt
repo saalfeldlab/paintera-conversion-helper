@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.conversion.to.paintera
+package org.janelia.saalfeldlab.conversion.to.paintera
 
 import com.google.gson.JsonElement
 import net.imglib2.type.NativeType
@@ -21,7 +21,7 @@ import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
-import org.janelia.saalfeldlab.paintera.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.DatasetInfo
 import java.io.File
 import java.io.IOException
 import java.nio.file.Paths
@@ -378,11 +378,7 @@ private fun <I, O> handleLabelDataset(
     } else {
         LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer, uniqueLabelsGroup, labelBlockMappingGroupDirectory)
     }
-    if (writer.getAttributes(labelBlockMappingGroup).containsKey(LABEL_BLOCK_LOOKUP_KEY)) {
-        writer.setAttribute(
-            info.outputGroup,
-            LABEL_BLOCK_LOOKUP_KEY,
-            writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement::class.java)
-        )
+    writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement::class.java)?.also { labelBlockLookup ->
+        writer.setAttribute( info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, labelBlockLookup )
     }
 }
