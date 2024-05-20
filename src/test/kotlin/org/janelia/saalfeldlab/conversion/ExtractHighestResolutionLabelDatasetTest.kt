@@ -7,6 +7,7 @@ import net.imglib2.converter.Converters
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.type.label.FromIntegerTypeConverter
+import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
@@ -61,7 +62,7 @@ class ExtractHighestResolutionLabelDatasetTest {
 			val multisetData = Converters.convert(
 				labelData,
 				FromIntegerTypeConverter(),
-				FromIntegerTypeConverter.getAppropriateType()
+				LabelMultisetType.singleEntryWithSingleOccurrence()
 			)
 
 			val resolution = doubleArrayOf(1.0, 2.0, 3.0)
@@ -89,22 +90,22 @@ class ExtractHighestResolutionLabelDatasetTest {
 			for (extension in extensions) {
 				val outputContainerPath = tmpDir.resolve(String.format("out.%s", extension))
 				val n5out: N5Reader = getWriter(outputContainerPath.toAbsolutePath().toString()).get()
-				for (i in inputDatasets.indices) {
-					LOG.info { "Extracting paintera dataset ${originalContainerPath.toAbsolutePath()}:${inputDatasets[i]} into $extension format" }
+				for (idx in inputDatasets.indices) {
+					LOG.info { "Extracting paintera dataset ${originalContainerPath.toAbsolutePath()}:${inputDatasets[idx]} into $extension format" }
 					ExtractHighestResolutionLabelDataset.extract(
 						sc,
 						getReader(originalContainerPath.toAbsolutePath().toString()),
 						getWriter(outputContainerPath.toAbsolutePath().toString()),
-						inputDatasets[i],
-						String.format("%d", i),
+						inputDatasets[idx],
+						String.format("%d", idx),
 						intArrayOf(4, 2, 3),
 						false,
 						TLongLongHashMap()
 					)
-					Assert.assertArrayEquals(resolution, n5out.getAttribute(String.format("%d", i), "resolution", DoubleArray::class.java), 0.0)
-					Assert.assertArrayEquals(offset, n5out.getAttribute(String.format("%d", i), "offset", DoubleArray::class.java), 0.0)
+					Assert.assertArrayEquals(resolution, n5out.getAttribute(String.format("%d", idx), "resolution", DoubleArray::class.java), 0.0)
+					Assert.assertArrayEquals(offset, n5out.getAttribute(String.format("%d", idx), "offset", DoubleArray::class.java), 0.0)
 
-					LoopBuilder.setImages(labelData, N5Utils.open<UnsignedLongType>(n5out, String.format("%d", i)))
+					LoopBuilder.setImages(labelData, N5Utils.open<UnsignedLongType>(n5out, String.format("%d", idx)))
 						.forEachPixel(BiConsumer { s: UnsignedLongType, t: UnsignedLongType ->
 							LOG.debug { "Comparing $s and $t (actual)" }
 							Assert.assertTrue(s.valueEquals(t))

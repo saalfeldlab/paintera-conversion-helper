@@ -197,7 +197,7 @@ paintera-convert to-paintera \
                 System.err.println(conversionError.message)
                 conversionError.exitCode
             } catch (error: Exception) {
-                LOG.error("Unable to convert into Paintera dataset",  error)
+                LOG.error(error) { "Unable to convert into Paintera dataset" }
                 PainteraConvert.EXIT_CODE_EXECUTION_EXCEPTION
             }
 
