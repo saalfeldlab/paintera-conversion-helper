@@ -11,8 +11,6 @@ import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
-import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
-import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import org.janelia.saalfeldlab.n5.universe.N5Factory
 import java.io.IOException
 import java.nio.file.Paths
@@ -85,9 +83,9 @@ fun <T> handleRawDataset(
 	} else {
 		N5ConvertSpark.convert<T, T>(
 			sc,
-			N5ReaderSupplier { info.inputContainer.n5Reader() },
+			{ info.inputContainer.n5Reader() },
 			info.inputDataset,
-			N5WriterSupplier { info.outputContainer.n5Writer(defaultGsonBuilder()) },
+			{ info.outputContainer.n5Writer(defaultGsonBuilder()) },
 			outputDataset,
 			Optional.of(blockSize),
 			Optional.of(GzipCompression()), // TODO pass compression as parameter

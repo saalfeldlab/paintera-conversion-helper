@@ -101,7 +101,7 @@ class PainteraConvertTest {
 		Assert.assertArrayEquals(Arrays.stream(dimensions).map { dimension: Long -> dimension / 2 }.toArray(), attrsS1.dimensions)
 
 		LoopBuilder
-			.setImages(LABELS, N5Utils.open(painteraLabelsN5, "$labelTargetDataset/data/s0") as RandomAccessibleInterval<UnsignedLongType>)
+			.setImages(LABELS, N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$labelTargetDataset/data/s0"))
 			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> Assert.assertTrue(e.valueEquals(a)) })
 
 		val s1: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
@@ -116,7 +116,7 @@ class PainteraConvertTest {
 		)
 
 		LoopBuilder
-			.setImages(s1, N5Utils.open(painteraLabelsN5, "$labelTargetDataset/data/s1") as RandomAccessibleInterval<UnsignedLongType>)
+			.setImages(s1, N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$labelTargetDataset/data/s1"))
 			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> Assert.assertTrue(e.valueEquals(a)) })
 	}
 

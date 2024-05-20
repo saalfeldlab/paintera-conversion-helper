@@ -20,8 +20,6 @@ import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
-import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
-import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import java.io.File
 import java.io.IOException
 import java.nio.file.Paths
@@ -309,9 +307,9 @@ private fun <I, O> handleLabelDataset(
 	if (winnerTakesAll) {
 		N5ConvertSpark.convert<I, O>(
 			sc,
-			N5ReaderSupplier { info.inputContainer.n5Reader() },
+			{ info.inputContainer.n5Reader() },
 			info.inputDataset,
-			N5WriterSupplier { info.outputContainer.n5Writer(defaultGsonBuilder()) },
+			{ info.outputContainer.n5Writer(defaultGsonBuilder()) },
 			originalResolutionOutputDataset,
 			Optional.of(initialBlockSize),
 			Optional.of(GzipCompression()), // TODO pass compression as parameter

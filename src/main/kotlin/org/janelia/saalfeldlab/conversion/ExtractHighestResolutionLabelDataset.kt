@@ -42,23 +42,19 @@ object ExtractHighestResolutionLabelDataset {
 	private val LOG = KotlinLogging.logger { }
 
 	private val VALID_TYPES: Set<DataType> = Stream
-		.of(*DataType.values())
-		.filter { other: DataType? -> DataType.UINT64.equals(other) }
-		.filter { other: DataType? -> DataType.UINT32.equals(other) }
-		.filter { other: DataType? -> DataType.INT64.equals(other) }
+		.of(*DataType.entries.toTypedArray())
+		.filter { other: DataType? -> DataType.UINT64 == other }
+		.filter { other: DataType? -> DataType.UINT32 == other }
+		.filter { other: DataType? -> DataType.INT64 == other }
 		.collect(Collectors.toSet())
 
 	private fun isValidType(dataType: DataType): Boolean {
 		return VALID_TYPES.contains(dataType)
 	}
 
-	private val DATASET_ATTRIBUTES: Set<String> = Stream
-		.of("dimensions", "blockSize", "compression", "dataType")
-		.collect(Collectors.toSet())
-
 	@JvmStatic
 	fun main(args: Array<String>) {
-		CommandLine.call(Args(), *args)
+		CommandLine(Args()).execute(*args)
 	}
 
 	@Throws(IOException::class)

@@ -47,13 +47,10 @@ abstract class DatasetConverter(val info: DatasetInfo) {
 		overwriteExisiting: Boolean
 	)
 
-	protected open val legalDimensions: Set<Int>
-		get() = setOf(3)
-
 	protected abstract val type: String
 
 	companion object {
-		operator fun get(info: DatasetInfo, type: String) = when (type.toLowerCase()) {
+		operator fun get(info: DatasetInfo, type: String) = when (type.lowercase()) {
 			"raw" -> DatasetConverterRaw(info)
 			"channel" -> DatasetConverterChannel(info)
 			"label" -> DatasetConverterLabel(info)

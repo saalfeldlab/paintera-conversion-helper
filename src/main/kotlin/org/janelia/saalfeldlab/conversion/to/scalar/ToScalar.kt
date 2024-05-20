@@ -154,7 +154,7 @@ class ToScalar : Callable<Int> {
 					inputDataset,
 					outputDataset,
 					blockSize,
-					considerFragmentSegmentAssignment != null && considerFragmentSegmentAssignment,
+					considerFragmentSegmentAssignment,
 					assignment
 				)
 			}
