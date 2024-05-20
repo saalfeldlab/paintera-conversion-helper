@@ -48,12 +48,12 @@ class ToPainteraData {
         header = [
             "" +
                     "Converts arbitrary 3D label and single- or multi-channel raw datasets " +
-                    "in N5 or HDF5 containers into a Paintera-friendly format.  ",
+                    "in N5, Zarr, or HDF5 containers into a Paintera-friendly format.  ",
             ""],
         description = [
             "",
             "" +
-                    "Converts arbitrary 3D label and single- or multi-channel raw datasets in N5 or HDF5 containers into a Paintera-friendly format (https://github.com/saalfeldlab/paintera#paintera-data-format).  " +
+                    "Converts arbitrary 3D label and single- or multi-channel raw datasets in N5, Zarr, or HDF5 containers into a Paintera-friendly format (https://github.com/saalfeldlab/paintera#paintera-data-format).  " +
                     "A Paintera-friendly format is a group (referred to as \"paintera group\" in the following) inside an N5 container with a multi-scale representation (mipmap pyramid) in the `data' sub-group. " +
                     "The `data' sub-group contains datasets s0 ... sN, where s0 is the highest resolution dataset and sN is the lowest resolution (most downsampled) dataset.  " +
                     "Each dataset sX has an attribute `\"downsamplingFactors\":[X, Y, Z]' relative to s0, e.g. `\"downsamplingFactors\":[16.0,16.0,2.0]'.  " +
@@ -72,7 +72,7 @@ class ToPainteraData {
                     "The `\"labelBlockLookup\"' attribute specifies the type of index stored in `label-to-block-mapping'.",
             "",
             "" +
-                    "Conversion options can be set at (a) the global level, (b) at the N5/HDF5 container level, or (c) at a dataset level.  " +
+                    "Conversion options can be set at (a) the global level, (b) at the N5/Zarr/HDF5 container level, or (c) at a dataset level.  " +
                     "More specific options take precedence over more general option if specified, in particular (b) overrides (a) and (c) overrides (b).  " +
                     "Options that override options set at a more general level are prefixed with `--container' and `--dataset' for (b) and (c), respectively.  " +
                     "For example, the downsampling factors/scales can be set with the `--scale' option at the global level and overriden with the " +
