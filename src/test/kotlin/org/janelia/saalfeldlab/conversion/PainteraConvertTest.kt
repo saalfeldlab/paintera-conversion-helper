@@ -5,11 +5,11 @@ import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.integer.UnsignedLongType
+import org.janelia.saalfeldlab.conversion.PainteraConvert.Companion.main
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import org.janelia.saalfeldlab.conversion.PainteraConvert.Companion.main
 import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.junit.Assert
 import org.junit.Test
@@ -53,7 +53,7 @@ class PainteraConvertTest {
 		testLabelMultisetsWithExtension(".zarr")
 	}
 
-	fun testWinnerTakesAllWithExtension(extension : String) {
+	fun testWinnerTakesAllWithExtension(extension: String) {
 		val scalarLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}$extension"
 		val scalarLabelsN5: N5Writer = N5Factory.createWriter(scalarLabelsPath)
 		scalarLabelsN5.createDataset(LABEL_SOURCE_DATASET, dimensions, blockSize, DataType.UINT64, RawCompression())

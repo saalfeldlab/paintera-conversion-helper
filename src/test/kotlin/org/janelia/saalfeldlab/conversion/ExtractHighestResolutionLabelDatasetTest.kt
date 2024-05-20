@@ -120,7 +120,7 @@ class ExtractHighestResolutionLabelDatasetTest {
 	}
 
 	companion object {
-		private val LOG = KotlinLogging.logger {  }
+		private val LOG = KotlinLogging.logger { }
 
 		private fun getReader(container: String): N5ReaderSupplier {
 			return N5ReaderSupplier { N5Factory.createReader(container) }

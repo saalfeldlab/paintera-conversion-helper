@@ -39,7 +39,7 @@ import java.util.stream.Collectors
 import java.util.stream.Stream
 
 object ExtractHighestResolutionLabelDataset {
-	private val LOG = KotlinLogging.logger {  }
+	private val LOG = KotlinLogging.logger { }
 
 	private val VALID_TYPES: Set<DataType> = Stream
 		.of(*DataType.values())
