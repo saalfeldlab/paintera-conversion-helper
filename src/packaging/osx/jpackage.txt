@@ -1,0 +1,12 @@
+--name "${app.name}
+--type "pkg"
+--dest "${project.build.directory}/installer-${matrix.os}"
+--main-class ${main-class}
+--input "${project.build.directory}/dependency"
+--runtime-image "${project.build.directory}/jvm-image"
+--temp "${project.build.directory}/installer-work"
+--resource-dir "${project.build.directory}/packaging/osx"
+--java-options "-XX:MaxRAMPercentage=75"
+
+${macos.sign}
+${macos.sign.identity}
