@@ -1,4 +1,4 @@
---name "${app.name}
+--name "${app.name}"
 --type "pkg"
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}

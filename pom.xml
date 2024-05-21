@@ -8,7 +8,7 @@
 
     <groupId>org.janelia.saalfeldlab</groupId>
     <artifactId>paintera-conversion-helper</artifactId>
-    <version>0.11.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
 
     <name>Paintera-Conversion-Helper</name>
     <description>Command line tool to convert datasets to and from paintera friendly formats</description>
@@ -55,7 +55,7 @@
         <jackson.version>2.15.4</jackson.version>
 
         <!-- For JPackage -->
-        <app.name>Paintera Conversion Helper</app.name>
+        <app.name>paintera-convert</app.name>
         <jvm.modules>java.naming,java.management,java.sql</jvm.modules>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <windows.upgrade.uuid>f918b6f9-8685-4b50-9fbd-9be7a1209249</windows.upgrade.uuid>

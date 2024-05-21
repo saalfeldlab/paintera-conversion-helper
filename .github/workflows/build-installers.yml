@@ -1,0 +1,69 @@
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: Build Installers
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [master]
+
+env:
+  DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
+  PRIMARY_BUNDLE_ID: org.janelia.saalfeldlab.PainteraConvert # Unique to your app, often the launcher class
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-14, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set Version
+        shell: bash
+        run: |
+          short_version=`git rev-parse --short HEAD`
+          echo "VERSION=$short_version" >> $GITHUB_ENV
+      - name: Download Wix
+        uses: i3h/download-release-asset@v1
+        if: matrix.os == 'windows-latest'
+        with:
+          owner: wixtoolset
+          repo: wix3
+          tag: wix3112rtm
+          file: wix311-binaries.zip
+      - name: Decompress Wix
+        uses: DuckSoft/extract-7z-action@v1.0
+        if: matrix.os == 'windows-latest'
+        with:
+          pathSource: wix311-binaries.zip
+          pathTarget: ./target/wix
+      - name: Add Wix to Path
+        run: echo "$HOME/target/wix" >> $GITHUB_PATH
+        if: matrix.os == 'windows-latest'
+      - uses: actions/checkout@v2
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: 21
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: "Build with Maven"
+        if: matrix.os != 'macos-latest' && matrix.os != 'macos-14'
+        run: mvn -B clean install -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
+      - name: "Build with Maven (macOS No Signing)"
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        if: ${{ env.MACOS_CERTIFICATE == null && (matrix.os == 'macos-latest' || matrix.os == 'macos-14') }}
+        run: mvn -B clean install -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
+
+      - name: Upload Installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: PainteraConvert-${{ matrix.os }}-${{ env.VERSION }}
+          path: |
+            ${{ env.DMG_PATH }}
+            ./target/installer-${{ matrix.os }}/*

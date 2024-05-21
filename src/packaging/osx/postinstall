@@ -6,7 +6,7 @@ chmod +r "APP_LOCATION/"*.jar
 
 cat > /usr/local/bin/paintera-convert <<EOF
  #!/usr/bin/env sh
- "$(realpath '/Applications/Paintera Conversion Helper.app/Contents/app/../MacOS/Paintera Conversion Helper')"
+ "$(realpath 'APP_LOCATION/../MacOS/paintera-convert')"
 EOF
 chmod +x /usr/local/bin/paintera-convert
 

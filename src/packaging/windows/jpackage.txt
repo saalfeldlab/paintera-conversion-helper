@@ -1,5 +1,5 @@
 --type msi
---name "${app.name}
+--name "${app.name}"
 --vendor ${windows.vendor}
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
