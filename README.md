@@ -1,7 +1,31 @@
 [![Build Status](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml)
+![GitHub Release](https://img.shields.io/github/v/release/saalfeldlab/paintera-conversion-helper)
 
 # Paintera Conversion Helper
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
+
+## Installation
+Releases can be download for Ubuntu and MacOS from the [Github Releases](https://github.com/saalfeldlab/paintera-conversion-helper/releases)
+
+## Usage
+This conversion tool currently supports any number of datasets (raw or label) with a
+single (global) block size, and will output to a single N5 group in a paintera-compatible
+format.
+
+By default, spark will run locally:
+```
+paintera-convert to-paintera [...]
+```
+
+`paintera-convert` can also convert paintera label sources to scalar label datasets:
+```
+paintera-convert extract-to-scalar [...]
+```
+`extract-to-scalar` will the highest resolution scale level of a Paintera dataset as a scalar `uint64` Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added. See `extract-to-scalar --help` for more details.
+
+
+<details>
+<summary><b>Deprecated</b></summary>
 
 ## Installation
 paintera-conversion-helper is available on conda on the `hanslovsky` channel:
@@ -35,50 +59,15 @@ To run on the Janelia cluster build a fat jar without Spark:
 mvn -Denforcer.skip=true -Pfat clean package
 ```
 
-## Running
-This conversion tool currently supports any number of datasets (raw or label) with a
-single (global) block size, and will output to a single N5 group in a paintera-compatible
-format. For local spark usage, [install through conda or pip](#installation), and run:
-```
-paintera-convert to-paintera [...]
-```
 
-Introduced in version `0.7.0`, the
-```
-paintera-convert extract-to-scalar [...]
-```
-extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details.
-
-
-### Janelia cluster
-
-Clone the repository with submodules:
-```
-git clone --recursive https://github.com/saalfeldlab/paintera-conversion-helper.git
-```
-If you have already cloned the repository, run this after cloning to fetch the submodules:
-```
-git submodule update --init --recursive
-```
-
-Then, run the following script to build the package:
-```
-./build-for-cluster.py
-```
-
-For submitting a job to the Janelia cluster you can use the following script:
-```
-startup-scripts/spark-janelia/convert.py  <number of cluster nodes>  <other parameters>
-```
-The first parameter is the number of cluster nodes to use (for example, 5), and the rest is the same parameters as in the `paintera-convert` command.
-
+</details>
 
 ### Usage Example
 To convert the `raw` and `neuron_ids` datasets of [sample A of the cremi challenge](https://cremi.org/data/) into Paintera format with mipmaps on Linux, assuming that you downloaded the data into `$HOME/Downloads`, run:
 ```sh
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
-  --revert-array-attributes \
+  --reverse-array-attributes \
   --output-container=paintera-converted.n5 \
   --container=sample_A_20160501.hdf \
     -d volumes/raw \
@@ -88,18 +77,12 @@ paintera-convert to-paintera \
     -d volumes/labels/neuron_ids
 ```
 
-or for a locally compiled fat jar:
-```
-java -Dspark.master=local[*] -jar target/paintera-conversion-helper-0.4.1-SNAPSHOT-shaded.jar [...]
-```
-with any desired command line arguments.
-
 ### Usage Help
 ```
 $ paintera-convert to-paintera --help
 Usage: paintera-convert to-paintera [[--block-size=X,Y,Z|U] [--scale=X,Y,Z|U...] [--scale=X,Y,Z|U...]...
                                     [--downsample-block-sizes=X,Y,Z|U...] [--downsample-block-sizes=X,Y,Z|U...]...
-                                    [--revert-array-attributes] [--resolution=X,Y,Z|U] [--offset=X,Y,Z|U] [-m=N...]
+                                    [--reverse-array-attributes] [--resolution=X,Y,Z|U] [--offset=X,Y,Z|U] [-m=N...]
                                     [-m=N...]... [--label-block-lookup-n5-block-size=N]
                                     [--winner-takes-all-downsampling]] ([--container=CONTAINER] [] (-d=DATASET
                                     [--target-dataset=TARGET_DATASET] [[--type=TYPE]   ])...)... [--overwrite-existing]
@@ -117,9 +100,9 @@ Options:
       --downsample-block-sizes=X,Y,Z|U...
                              Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container
                                and dataset specific block sizes, respectively.
-      --revert-array-attributes
-                             Revert array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].
-                             Use --container-revert-array-attributes and --dataset-revert-array-attributes for
+      --reverse-array-attributes
+                             Reverse array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].
+                             Use --container-reverse-array-attributes and --dataset-reverse-array-attributes for
                                container and dataset specific setting, respectively.
       --resolution=X,Y,Z|U   Specify resolution (overrides attributes of input datasets, if any).
                              Use --container-resolution and --dataset-resolution for container and dataset specific
@@ -154,4 +137,28 @@ Options:
       --type=TYPE
       --help
 ```
+
+### Janelia cluster
+
+Clone the repository with submodules:
+```
+git clone --recursive https://github.com/saalfeldlab/paintera-conversion-helper.git
+```
+If you have already cloned the repository, run this after cloning to fetch the submodules:
+```
+git submodule update --init --recursive
+```
+
+Then, run the following script to build the package:
+```
+./build-for-cluster.py
+```
+
+For submitting a job to the Janelia cluster you can use the following script:
+```
+startup-scripts/spark-janelia/convert.py  <number of cluster nodes>  <other parameters>
+```
+The first parameter is the number of cluster nodes to use (for example, 5), and the rest is the same parameters as in the `paintera-convert` command.
+
+
 
