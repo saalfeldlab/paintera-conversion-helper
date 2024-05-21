@@ -16,6 +16,7 @@ import picocli.CommandLine
 import java.io.File
 import java.io.IOException
 import java.lang.invoke.MethodHandles
+import java.net.URI
 import java.util.concurrent.Callable
 import kotlin.system.exitProcess
 
@@ -152,7 +153,7 @@ paintera-convert to-paintera \
 				container.call()
 				for (dataset in container.datasets) {
 					val info = DatasetInfo(
-						inputContainer = container.container.absolutePath,
+						inputContainer = container.container.toString(),
 						inputDataset = dataset.dataset,
 						outputContainer = outputContainer,
 						outputGroup = dataset.targetDataset
@@ -331,7 +332,7 @@ class GlobalParameters : Callable<Unit> {
 class ContainerParameters : Callable<Unit> {
 
 	@CommandLine.Option(names = ["--container"], paramLabel = "CONTAINER")
-	private lateinit var _container: File
+	private lateinit var _container: URI
 
 	@CommandLine.ArgGroup(exclusive = false)
 	var parameters: ContainerSpecificParameters = ContainerSpecificParameters()
@@ -340,7 +341,7 @@ class ContainerParameters : Callable<Unit> {
 	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
 	private lateinit var _datasets: Array<DatasetParameters>
 
-	val container: File
+	val container: URI
 		get() = _container
 
 	val datasets: Array<DatasetParameters>

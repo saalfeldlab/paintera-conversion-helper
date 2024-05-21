@@ -1,11 +1,13 @@
 package org.janelia.saalfeldlab.conversion
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.janelia.saalfeldlab.conversion.to.paintera.*
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
-import java.io.File
+import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5URI
+import org.janelia.saalfeldlab.n5.universe.N5Factory
 import java.io.Serializable
-import java.nio.file.Paths
 
 data class DatasetInfo(
 	val inputContainer: String,
@@ -30,9 +32,15 @@ data class DatasetInfo(
 
 	@Throws(InvalidInputContainer::class, InvalidInputDataset::class)
 	fun ensureInput(): Boolean {
-		if (!File(inputContainer).exists())
+		val n5: N5Reader
+		try {
+			n5 = N5Factory.createReader(inputContainer)
+		} catch( e : Exception) {
+			LOG.error(e) {"Could not load input container $inputContainer"}
 			throw InputContainerDoesNotExist(inputContainer)
-		inputContainer.n5Reader().let { container ->
+		}
+
+		n5.let { container ->
 			if (!container.exists(inputDataset))
 				throw InputDatasetDoesNotExist(inputContainer, inputDataset)
 			if (!container.datasetExists(inputDataset))
@@ -48,15 +56,25 @@ data class DatasetInfo(
 
 	@Throws(InvalidInputContainer::class, InvalidInputDataset::class)
 	fun ensureOutput(existOk: Boolean): Boolean {
-		if (File(outputContainer).let { it.exists() && !it.isDirectory })
-			throw OutputContainerIsFile(outputContainer)
-		if (!existOk && !inputSameAsOutput() && outputContainer.n5Writer().exists(outputGroup))
+		/* Check if already exists */
+		val alreadyExists = try {
+			val n5 = N5Factory.createReader(outputContainer)
+			n5.exists("/")
+		} catch (e : Exception) {
+			false
+		}
+
+		if ((!existOk && alreadyExists) && !inputSameAsOutput() && outputContainer.n5Writer().exists(outputGroup))
 			throw OutputDatasetExists(outputContainer, outputGroup)
 		return true
 	}
 
 	fun inputSameAsOutput(): Boolean {
 		val outputDataset = scaleGroup(outputGroup, 0)
-		return Paths.get(inputContainer) == Paths.get(outputContainer) && Paths.get(inputDataset) == Paths.get(outputDataset)
+		return N5URI(inputContainer) == N5URI(outputContainer) && N5URI.normalizeGroupPath(inputDataset) == N5URI.normalizeGroupPath(outputDataset)
+	}
+
+	companion object {
+		private val LOG = KotlinLogging.logger {  }
 	}
 }
