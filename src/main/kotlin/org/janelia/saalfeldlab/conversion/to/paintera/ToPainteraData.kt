@@ -90,7 +90,7 @@ class ToPainteraData {
 					"Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available and not specified.",
 			"    Offset:  3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in some arbitrary coordinate space defined by the resolution.  " +
 					"Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available and not specified.",
-			"    Revert array attributes:  Revert array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
+			"    Reverse array attributes:  Reverse array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
 			"    Label only:",
 			"        Winner takes all downsampling:  Use scalar label type by assigning majority label to downsampled voxels instead of non-scalar label type (https://github.com/saalfeldlab/paintera#label-multisets).",
 			"        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
@@ -100,7 +100,7 @@ class ToPainteraData {
 			"""
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
-  --revert-array-attributes \
+  --reverse-array-attributes \
   --output-container=paintera-converted.n5 \
   --container=sample_A_20160501.hdf \
     -d volumes/raw \
@@ -241,13 +241,13 @@ class GlobalParameters : Callable<Unit> {
 	private lateinit var _downsamplingBlockSizes: Array<SpatialIntArray>
 
 	@CommandLine.Option(
-		names = ["--revert-array-attributes"],
+		names = ["--reverse-array-attributes"],
 		description = [
-			"Revert array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].",
-			"Use --container-revert-array-attributes and --dataset-revert-array-attributes for container and dataset specific setting, respectively."],
+			"Reverse array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].",
+			"Use --container-reverse-array-attributes and --dataset-reverse-array-attributes for container and dataset specific setting, respectively."],
 		defaultValue = "false"
 	)
-	var revertArrayAttributes: Boolean = false
+	var reverseArrayAttributes: Boolean = false
 
 	@CommandLine.Option(
 		names = ["--resolution"],
@@ -409,8 +409,8 @@ class ContainerSpecificParameters {
 	)
 	private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
-	@CommandLine.Option(names = ["--container-revert-array-attributes"], hidden = true)
-	private var _revertArrayAttributes: Boolean? = null
+	@CommandLine.Option(names = ["--container-reverse-array-attributes"], hidden = true)
+	private var _reverseArrayAttributes: Boolean? = null
 
 	@CommandLine.Option(
 		names = ["--container-resolution"],
@@ -451,8 +451,8 @@ class ContainerSpecificParameters {
 			?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
 			?: arrayOf(blockSize), numScales)
 
-	val revertArrayAttributes: Boolean
-		get() = _revertArrayAttributes ?: globalParameters.revertArrayAttributes
+	val reverseArrayAttributes: Boolean
+		get() = _reverseArrayAttributes ?: globalParameters.reverseArrayAttributes
 
 	val resolution: SpatialDoubleArray?
 		get() = _resolution ?: globalParameters.resolution
@@ -510,8 +510,8 @@ class DatasetSpecificParameters {
 	)
 	private var _downsamplingBlockSizes: Array<SpatialIntArray>? = null
 
-	@CommandLine.Option(names = ["--dataset-revert-array-attributes"], hidden = true)
-	private var _revertArrayAttributes: Boolean? = null
+	@CommandLine.Option(names = ["--dataset-reverse-array-attributes"], hidden = true)
+	private var _reverseArrayAttributes: Boolean? = null
 
 	@CommandLine.Option(
 		names = ["--dataset-resolution"],
@@ -555,8 +555,8 @@ class DatasetSpecificParameters {
 			?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
 			?: arrayOf(blockSize), numScales)
 
-	val revertArrayAttributes: Boolean
-		get() = _revertArrayAttributes ?: containerParameters.revertArrayAttributes
+	val reverseArrayAttributes: Boolean
+		get() = _reverseArrayAttributes ?: containerParameters.reverseArrayAttributes
 
 	val resolution: SpatialDoubleArray?
 		get() = _resolution ?: containerParameters.resolution

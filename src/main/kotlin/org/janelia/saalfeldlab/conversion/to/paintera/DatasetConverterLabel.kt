@@ -34,7 +34,7 @@ class DatasetConverterLabel(info: DatasetInfo) : DatasetConverter(info) {
 			parameters.scales.map { it.array }.toTypedArray(),
 			parameters.downsamplingBlockSizes.map { it.array }.toTypedArray(),
 			parameters.maxNumEntries,
-			parameters.revertArrayAttributes,
+			parameters.reverseArrayAttributes,
 			parameters.winnerTakesAllDownsampling,
 			parameters.labelBlockLookupN5BlockSize,
 			overwriteExisiting
@@ -54,7 +54,7 @@ private fun handleLabelDatasetInferType(
 	scales: Array<IntArray>,
 	downsamplingBlockSizes: Array<IntArray>,
 	maxNumEntries: IntArray,
-	revert: Boolean,
+	reverse: Boolean,
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
 	overwriteExisiting: Boolean = false
@@ -68,7 +68,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -81,7 +81,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -94,7 +94,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -107,7 +107,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -120,7 +120,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -133,7 +133,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -146,7 +146,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -159,7 +159,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -176,7 +176,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -189,7 +189,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -202,7 +202,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -215,7 +215,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -228,7 +228,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -241,7 +241,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -254,7 +254,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -267,7 +267,7 @@ private fun handleLabelDatasetInferType(
 				scales,
 				downsamplingBlockSizes,
 				maxNumEntries,
-				revert,
+				reverse,
 				winnerTakesAll,
 				labelBlockLookupN5BlockSize,
 				overwriteExisiting
@@ -285,7 +285,7 @@ private fun <I, O> handleLabelDataset(
 	scales: Array<IntArray>,
 	downsampleBlockSizes: Array<IntArray>,
 	maxNumEntriesArray: IntArray,
-	revert: Boolean,
+	reverse: Boolean,
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
 	overwriteExisting: Boolean
@@ -357,7 +357,7 @@ private fun <I, O> handleLabelDataset(
 			info.outputContainer,
 			originalResolutionOutputDataset,
 			GzipCompression(),
-			revert
+			reverse
 		)
 
 		writer.setAttribute(info.outputGroup, "maxId", writer.getAttribute(originalResolutionOutputDataset, "maxId", Long::class.java))

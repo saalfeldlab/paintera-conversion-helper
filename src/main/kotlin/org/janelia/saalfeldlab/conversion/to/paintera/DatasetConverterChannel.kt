@@ -42,7 +42,7 @@ private fun <T> handleChannelDataset(
 	blockSize: IntArray,
 	scales: Array<IntArray>,
 	downsamplingBlockSizes: Array<IntArray>,
-	revertArrayAttributes: Boolean
+	reverseArrayAttributes: Boolean
 ) where T : NativeType<T>, T : RealType<T> {
 
 
@@ -58,7 +58,7 @@ private fun <T> handleChannelDataset(
 		blockSize + intArrayOf(channelBlockSize),
 		scales.map { it + intArrayOf(1) }.toTypedArray(),
 		downsamplingBlockSizes.map { it + intArrayOf(channelBlockSize) }.toTypedArray(),
-		revertArrayAttributes
+		reverseArrayAttributes
 	)
 
 	datasetInfo.outputContainer.n5Writer(defaultGsonBuilder()).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
