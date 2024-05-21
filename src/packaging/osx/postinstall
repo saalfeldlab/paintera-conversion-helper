@@ -4,11 +4,6 @@ chown root:wheel "INSTALL_LOCATION"
 chmod a+rX "INSTALL_LOCATION"
 chmod +r "APP_LOCATION/"*.jar
 
-cat > /usr/local/bin/paintera-convert <<EOF
- #!/usr/bin/env sh
- "$(realpath 'APP_LOCATION/../MacOS/paintera-convert')"
-EOF
-chmod +x /usr/local/bin/paintera-convert
-
+ln -s "$(realpath 'APP_LOCATION/../MacOS/paintera-convert')" /usr/local/bin/paintera-convert
 
 exit 0
