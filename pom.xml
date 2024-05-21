@@ -50,7 +50,7 @@
         <n5-imglib2.version>7.0.0</n5-imglib2.version>
         <n5-universe.version>1.5.0</n5-universe.version>
         <imglib2-label-multisets.version>0.13.2</imglib2-label-multisets.version>
-        <label-utilities-spark.version>1.0.0-SNAPSHOT</label-utilities-spark.version>
+        <label-utilities-spark.version>1.0.0</label-utilities-spark.version>
         <spark.version>3.5.1</spark.version>
         <jackson.version>2.15.4</jackson.version>
 
@@ -194,12 +194,10 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!--	test-->
