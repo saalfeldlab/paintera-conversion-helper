@@ -1,12 +1,18 @@
 --type msi
---name "${app.name}"
+--name ${app.name}
+--app-version ${app.version}
+--win-menu
+--win-menu-group ${windows.vendor}
+--win-shortcut
 --vendor ${windows.vendor}
 --dest "${project.build.directory}/installer-${matrix.os}"
+
 --main-class ${main-class}
 --input "${project.build.directory}/dependency"
 --runtime-image "${project.build.directory}/jvm-image"
 --temp "${project.build.directory}/installer-work"
 --java-options "-XX:MaxRAMPercentage=75"
+
 --win-upgrade-uuid ${windows.upgrade.uuid}
 --description "${project.description}"
 --copyright "(C) ${windows.vendor}"
