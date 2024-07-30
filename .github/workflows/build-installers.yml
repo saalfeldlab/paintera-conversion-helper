@@ -43,6 +43,11 @@ jobs:
       - name: Add Wix to Path
         run: echo "$HOME/target/wix" >> $GITHUB_PATH
         if: matrix.os == 'windows-latest'
+      - name: Install blosc (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          pip install blosc --no-input --target src/test/resources
+          mv src/test/resources/bin/* src/test/resources
       - uses: actions/checkout@v2
       - name: Set up JDK
         uses: actions/setup-java@v2
