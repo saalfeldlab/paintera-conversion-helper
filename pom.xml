@@ -55,6 +55,7 @@
         <jackson.version>2.15.4</jackson.version>
 
         <!-- For JPackage -->
+        <app.version>1.0.0</app.version>
         <app.name>paintera-convert</app.name>
         <jvm.modules>java.naming,java.management,java.sql</jvm.modules>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
