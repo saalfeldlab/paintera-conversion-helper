@@ -48,8 +48,7 @@
         <n5-universe.version>2.0.1</n5-universe.version>
         <n5-zarr.version>1.4.0</n5-zarr.version>
         <n5-imglib2.version>7.0.0</n5-imglib2.version>
-
-
+        <imglib2-label-multisets.version>0.13.2</imglib2-label-multisets.version>
         <label-utilities-spark.version>1.0.0</label-utilities-spark.version>
         <spark.version>3.5.1</spark.version>
         <jackson.version>2.15.4</jackson.version>
