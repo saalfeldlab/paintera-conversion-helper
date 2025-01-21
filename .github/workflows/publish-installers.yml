@@ -33,7 +33,6 @@ jobs:
           echo "VERSION=$tag_name" >> $GITHUB_ENV
       - name: Rename Artifacts
         run: |
-          mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
           mv PainteraConvert-ubuntu-latest-*/*.deb PainteraConvert-${{ env.VERSION }}_x86_64.deb
           mv PainteraConvert-macos-latest-*/*.pkg PainteraConvert-${{ env.VERSION }}-MacOS.pkg
           mv PainteraConvert-macos-14-*/*.pkg PainteraConvert-${{ env.VERSION }}-MacOS-AppleSilicon.pkg
@@ -44,7 +43,6 @@ jobs:
           tag_name: ${{ github.ref }}
           prerelease: false
           files: |
-            PainteraConvert-${{ env.VERSION }}-Windows.msi
             PainteraConvert-${{ env.VERSION }}_x86_64.deb
             PainteraConvert-${{ env.VERSION }}-MacOS.pkg
             PainteraConvert-${{ env.VERSION }}-MacOS-AppleSilicon.pkg
