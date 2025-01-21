@@ -47,7 +47,8 @@
         <n5-google-cloud.version>4.1.2</n5-google-cloud.version>
         <n5-universe.version>2.0.1</n5-universe.version>
         <n5-zarr.version>1.4.0</n5-zarr.version>
-        <imglib2-label-multisets.version>0.13.2</imglib2-label-multisets.version>
+
+
         <label-utilities-spark.version>1.0.0</label-utilities-spark.version>
         <spark.version>3.5.1</spark.version>
         <jackson.version>2.15.4</jackson.version>
