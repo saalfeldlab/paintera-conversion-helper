@@ -226,6 +226,7 @@ class GlobalParameters : Callable<Unit> {
 		description = [
 			"Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
 			"Use --container-scale and --dataset-scale for container and dataset specific scales, respectively."],
+		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
 	)
@@ -235,6 +236,7 @@ class GlobalParameters : Callable<Unit> {
 		names = ["--downsample-block-sizes"],
 		description = ["Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container and dataset specific block sizes, respectively."],
 		arity = "1..*",
+		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
 	)
@@ -395,6 +397,7 @@ class ContainerSpecificParameters {
 		hidden = true,
 		arity = "1..*",
 		description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
 	)
@@ -404,6 +407,7 @@ class ContainerSpecificParameters {
 		names = ["--container-downsample-block-sizes"],
 		hidden = true,
 		arity = "1..*",
+		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
 	)
@@ -495,6 +499,7 @@ class DatasetSpecificParameters {
 		hidden = true,
 		arity = "1..*",
 		description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
 	)
@@ -505,6 +510,7 @@ class DatasetSpecificParameters {
 		hidden = true,
 		arity = "1..*",
 		description = ["Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u"],
+		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
 	)
