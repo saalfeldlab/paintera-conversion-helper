@@ -1,4 +1,5 @@
 --name "${app.name}"
+--app-version ${app.version}
 --type "pkg"
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
@@ -6,7 +7,7 @@
 --runtime-image "${project.build.directory}/jvm-image"
 --temp "${project.build.directory}/installer-work"
 --resource-dir "${project.build.directory}/packaging/osx"
---java-options "-XX:MaxRAMPercentage=75"
+--java-options "-XX:MaxRAMPercentage=75 --add-exports=java.base/sun.nio.ch=ALL-UNNAMED"
 
 ${macos.sign}
 ${macos.sign.identity}
