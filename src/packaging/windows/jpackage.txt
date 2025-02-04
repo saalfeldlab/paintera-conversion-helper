@@ -1,12 +1,13 @@
 --type msi
 --name "${app.name}"
+--app-version ${app.version}
 --vendor ${windows.vendor}
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
 --input "${project.build.directory}/dependency"
 --runtime-image "${project.build.directory}/jvm-image"
 --temp "${project.build.directory}/installer-work"
---java-options "-XX:MaxRAMPercentage=75"
+--java-options "-XX:MaxRAMPercentage=75 --add-exports=java.base/sun.nio.ch=ALL-UNNAMED"
 --win-upgrade-uuid ${windows.upgrade.uuid}
 --description "${project.description}"
 --copyright "(C) ${windows.vendor}"
