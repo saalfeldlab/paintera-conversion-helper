@@ -6,7 +6,6 @@ import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
-import org.janelia.saalfeldlab.n5.universe.N5Factory
 import java.io.Serializable
 
 data class DatasetInfo(
@@ -21,20 +20,20 @@ data class DatasetInfo(
 			val attrs = attributes
 			return if (attrs.numDimensions == 4)
 				CHANNEL_IDENTIFIER
-			else when (inputContainer.n5Reader().getDatasetAttributes(inputDataset).dataType) {
+			else when (createReader(inputContainer).getDatasetAttributes(inputDataset).dataType) {
 				DataType.UINT64, DataType.INT64, DataType.UINT32 -> LABEL_IDENTIFIER
 				else -> RAW_IDENTIFIER
 			}
 		}
 
 	val attributes: DatasetAttributes
-		get() = inputContainer.n5Reader().getDatasetAttributes(inputDataset)
+		get() = createReader(inputContainer).getDatasetAttributes(inputDataset)
 
 	@Throws(InvalidInputContainer::class, InvalidInputDataset::class)
 	fun ensureInput(): Boolean {
 		val n5: N5Reader
 		try {
-			n5 = N5Factory.createReader(inputContainer)
+			n5 = createReader(inputContainer)
 		} catch( e : Exception) {
 			LOG.error(e) {"Could not load input container $inputContainer"}
 			throw InputContainerDoesNotExist(inputContainer)
@@ -57,14 +56,9 @@ data class DatasetInfo(
 	@Throws(InvalidInputContainer::class, InvalidInputDataset::class)
 	fun ensureOutput(existOk: Boolean): Boolean {
 		/* Check if already exists */
-		val alreadyExists = try {
-			val n5 = N5Factory.createReader(outputContainer)
-			n5.exists("/")
-		} catch (e : Exception) {
-			false
-		}
+		val alreadyExists = runCatching { createWriter(outputContainer).exists("/") }.getOrNull() == true
 
-		if ((!existOk && alreadyExists) && !inputSameAsOutput() && outputContainer.n5Writer().exists(outputGroup))
+		if ((!existOk && alreadyExists) && !inputSameAsOutput() && createWriter(outputContainer).exists(outputGroup))
 			throw OutputDatasetExists(outputContainer, outputGroup)
 		return true
 	}

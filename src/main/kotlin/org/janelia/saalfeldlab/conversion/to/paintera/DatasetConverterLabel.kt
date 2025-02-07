@@ -7,6 +7,8 @@ import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.*
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.createReader
+import org.janelia.saalfeldlab.conversion.createWriter
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
 import org.janelia.saalfeldlab.label.spark.downsample.SparkDownsampler
 import org.janelia.saalfeldlab.label.spark.exception.InputSameAsOutput
@@ -60,7 +62,7 @@ private fun handleLabelDatasetInferType(
 	overwriteExisiting: Boolean = false
 ) {
 	if (winnerTakesAll)
-		when (info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
+		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
 			DataType.INT8 -> handleLabelDataset<ByteType, UnsignedLongType>(
 				sc,
 				info,
@@ -168,7 +170,7 @@ private fun handleLabelDatasetInferType(
 			else -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
 		}
 	else
-		when (info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
+		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
 			DataType.INT8 -> handleLabelDataset<ByteType, LabelMultisetType>(
 				sc,
 				info,
@@ -292,7 +294,7 @@ private fun <I, O> handleLabelDataset(
 ) where
 		I : IntegerType<I>, I : NativeType<I>,
 		O : IntegerType<O>, O : NativeType<O> {
-	val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
+	val writer = createWriter(info.outputContainer)
 	writer.createGroup(info.outputGroup)
 
 	val dataGroup = "${info.outputGroup}/data"
@@ -307,9 +309,9 @@ private fun <I, O> handleLabelDataset(
 	if (winnerTakesAll) {
 		N5ConvertSpark.convert<I, O>(
 			sc,
-			{ info.inputContainer.n5Reader() },
+			{ createReader(info.inputContainer) },
 			info.inputDataset,
-			{ info.outputContainer.n5Writer(defaultGsonBuilder()) },
+			{ createWriter(info.outputContainer) },
 			originalResolutionOutputDataset,
 			Optional.of(initialBlockSize),
 			Optional.of(GzipCompression()), // TODO pass compression as parameter
@@ -323,7 +325,7 @@ private fun <I, O> handleLabelDataset(
 
 			N5LabelDownsamplerSpark.downsampleLabel<O>(
 				sc,
-				{ info.outputContainer.n5Writer(defaultGsonBuilder()) },
+				{ createWriter(info.outputContainer) },
 				scaleGroup(info.outputGroup, scaleNum),
 				newScaleDataset,
 				scale,

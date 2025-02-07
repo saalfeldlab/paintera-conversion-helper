@@ -7,11 +7,12 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.createReader
+import org.janelia.saalfeldlab.conversion.createWriter
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
-import org.janelia.saalfeldlab.n5.universe.N5Factory
 import java.io.IOException
 import java.nio.file.Paths
 import java.util.Optional
@@ -45,7 +46,7 @@ private fun handleRawDatasetInferType(
 	downsamplingBlockSizes: Array<IntArray>,
 	overwriteExisiting: Boolean = false
 ) {
-	when (info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
+	when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
 		DataType.INT8 -> handleRawDataset<ByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
 		DataType.UINT8 -> handleRawDataset<UnsignedByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
 		DataType.INT16 -> handleRawDataset<ShortType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
@@ -70,7 +71,7 @@ fun <T> handleRawDataset(
 	overwriteExisiting: Boolean = false
 ) where T : NativeType<T>, T : RealType<T> {
 
-	val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
+	val writer = createWriter(info.outputContainer)
 	writer.createGroup(info.outputGroup)
 
 	val dataGroup = Paths.get(info.outputGroup, "data").toString()
@@ -83,9 +84,9 @@ fun <T> handleRawDataset(
 	} else {
 		N5ConvertSpark.convert<T, T>(
 			sc,
-			{ info.inputContainer.n5Reader() },
+			{ createReader(info.inputContainer) },
 			info.inputDataset,
-			{ info.outputContainer.n5Writer(defaultGsonBuilder()) },
+			{ createWriter(info.outputContainer) },
 			outputDataset,
 			Optional.of(blockSize),
 			Optional.of(GzipCompression()), // TODO pass compression as parameter
@@ -102,11 +103,7 @@ fun <T> handleRawDataset(
 
 		N5DownsamplerSpark.downsample<T>(
 			sc,
-			{
-				val factory = N5Factory()
-				factory.gsonBuilder(defaultGsonBuilder())
-				factory.openWriter(info.outputContainer)
-			},
+			{ createWriter(info.outputContainer) },
 			"$dataGroup/s$scaleNum",
 			newScaleDataset,
 			scales[scaleNum],
