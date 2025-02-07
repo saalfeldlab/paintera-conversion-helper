@@ -2,14 +2,11 @@ package org.janelia.saalfeldlab.paintera.conversion.to.scalar
 
 import gnu.trove.map.TLongLongMap
 import gnu.trove.map.hash.TLongLongHashMap
-import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.*
-import org.janelia.saalfeldlab.label.spark.N5Helpers
-import org.janelia.saalfeldlab.paintera.conversion.*
+import org.janelia.saalfeldlab.conversion.to.newSparkConf
 import picocli.CommandLine
 import java.io.IOException
-import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
@@ -61,7 +58,8 @@ class ToScalar : Callable<Int> {
 
 	@CommandLine.Option(
 		names = ["--spark-master"],
-		required = false
+		required = false,
+		description = ["" + "Spark master URL. Defaults to local[X] where X is the number of cores, up to 24"]
 	)
 	var sparkMaster: String? = null
 
@@ -137,20 +135,13 @@ class ToScalar : Callable<Int> {
 			sparkMaster: String?
 		): Int {
 
-			val conf = SparkConf().setAppName(MethodHandles.lookup().lookupClass().name)
-			sparkMaster?.let { conf.setMaster(it) }
-			try {
-				if (conf["spark.master"] === null)
-					throw NoSparkMasterSpecified("--spark-master")
-			} catch (_: NoSuchElementException) {
-				throw NoSparkMasterSpecified("--spark-master")
-			}
+			val conf = newSparkConf(sparkMaster)
 
 			JavaSparkContext(conf).use { sc ->
 				ExtractHighestResolutionLabelDataset.extractNoGenerics(
 					sc,
-					{ N5Helpers.n5Reader(inputContainer) },
-					{ N5Helpers.n5Writer(outputContainer) },
+					{ createReader(inputContainer) },
+					{ createWriter(outputContainer) },
 					inputDataset,
 					outputDataset,
 					blockSize,

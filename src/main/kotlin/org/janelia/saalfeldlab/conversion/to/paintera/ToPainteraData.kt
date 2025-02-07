@@ -1,21 +1,17 @@
 package org.janelia.saalfeldlab.conversion.to.paintera
 
-import com.google.gson.GsonBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.ivy.core.IvyPatternHelper.TYPE_KEY
-import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.ConversionException
 import org.janelia.saalfeldlab.conversion.DatasetInfo
-import org.janelia.saalfeldlab.conversion.NoSparkMasterSpecified
-import org.janelia.saalfeldlab.conversion.PainteraConvert
+import org.janelia.saalfeldlab.conversion.PainteraConvert.Companion.EXIT_CODE_EXECUTION_EXCEPTION
+import org.janelia.saalfeldlab.conversion.to.newSparkConf
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.n5.universe.N5Factory
 import picocli.CommandLine
 import java.io.File
 import java.io.IOException
-import java.lang.invoke.MethodHandles
 import java.net.URI
 import java.util.concurrent.Callable
 import kotlin.system.exitProcess
@@ -47,56 +43,10 @@ class ToPainteraData {
 		aliases = ["tp"],
 		usageHelpWidth = 120,
 		header = [
-			"" +
-					"Converts arbitrary 3D label and single- or multi-channel raw datasets " +
-					"in N5, Zarr, or HDF5 containers into a Paintera-friendly format.  ",
-			""],
-		description = [
-			"",
-			"" +
-					"Converts arbitrary 3D label and single- or multi-channel raw datasets in N5, Zarr, or HDF5 containers into a Paintera-friendly format (https://github.com/saalfeldlab/paintera#paintera-data-format).  " +
-					"A Paintera-friendly format is a group (referred to as \"paintera group\" in the following) inside an N5 container with a multi-scale representation (mipmap pyramid) in the `data' sub-group. " +
-					"The `data' sub-group contains datasets s0 ... sN, where s0 is the highest resolution dataset and sN is the lowest resolution (most downsampled) dataset.  " +
-					"Each dataset sX has an attribute `\"downsamplingFactors\":[X, Y, Z]' relative to s0, e.g. `\"downsamplingFactors\":[16.0,16.0,2.0]'.  " +
-					"If not specified, `\"downsamplingFactors\":[1.0, 1.0, 1.0]' is assumed (this makes sense only for s0).  " +
-					"Unless the `--winner-takes-all-downsampling' option is specified, label data is converted and downsampled with a non-scalar summarizing label type (https://github.com/saalfeldlab/paintera#label-multisets).  " +
-					"The highest resolution label dataset can be extracted as scalar UINT64 label type with the `to-scalar' sub-command.  " +
-					"The paintera group has a \"painteraData\" attribute to specify the type of the dataset, i.e. `\"painteraData\":{\"type\":\"\$TYPE\"}', " +
-					"where TYPE is one of {channel, label, raw}.",
-			"",
-			"" +
-					"Label data paintera groups have additional sub-groups to store unique lists of label ids for each block (`unique-labels') per scale level, " +
-					"an index of containing blocks for each label id (`label-to-block-mapping') per scale level, " +
-					"and a lookup table for manual agglomeration of fragments (`fragment-segment-assignment').  " +
-					"Currently, the lookup table cannot be provided during conversion and will be populated when using Paintera.  " +
-					"A mandatory attribute `maxId' in the paintera group keeps track of the largest label id that has been used for a dataset.  " +
-					"The `\"labelBlockLookup\"' attribute specifies the type of index stored in `label-to-block-mapping'.",
-			"",
-			"" +
-					"Conversion options can be set at (a) the global level, (b) at the N5/Zarr/HDF5 container level, or (c) at a dataset level.  " +
-					"More specific options take precedence over more general option if specified, in particular (b) overrides (a) and (c) overrides (b).  " +
-					"Options that override options set at a more general level are prefixed with `--container' and `--dataset' for (b) and (c), respectively.  " +
-					"For example, the downsampling factors/scales can be set with the `--scale' option at the global level and overriden with the " +
-					"`--container-scale' option at the container level or the `--dataset-scale' option at the dataset level.",
-			"",
-			"" +
-					"The following parameters of conversion can be set at global, container, or dataset level:",
-			"",
-			"    Scales:  A list of 3-tuples of integers  or single integers that determine the downsampling and the number of mipmap levels.",
-			"    Block Size:  A 3-tuple of integers that specifies the block size of s0 data set that is being copied (or copy-converted). Defaults to (64, 64, 64)",
-			"    Downsampling block sizes:  A list of 3-tuples of integers that specify the block size at each scale level. " +
-					"If fewer downsampling block sizes than scales are specified, the unspecified downsampling block sizes default to the block size of the lowest resolution dataset sN for which a block size is specified.",
-			"    Resolution:  3-tuple of floating point values to specify resolution (physical extent) of a voxel.  " +
-					"Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available and not specified.",
-			"    Offset:  3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in some arbitrary coordinate space defined by the resolution.  " +
-					"Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available and not specified.",
-			"    Reverse array attributes:  Reverse array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
-			"    Label only:",
-			"        Winner takes all downsampling:  Use scalar label type by assigning majority label to downsampled voxels instead of non-scalar label type (https://github.com/saalfeldlab/paintera#label-multisets).",
-			"        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
+			"Converts arbitrary 3D label and single- or multi-channel raw datasets in N5, Zarr, or HDF5 containers into a Paintera-friendly format."],
+		footer = [
 			"",
 			"Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
-			"",
 			"""
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
@@ -109,9 +59,7 @@ paintera-convert to-paintera \
       --dataset-resolution 4,4,40.0 \
     -d volumes/labels/neuron_ids
 """,
-			"",
-			"Options:",
-			""]
+		]
 	)
 	class Parameters : Callable<Int> {
 		@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1")
@@ -125,7 +73,8 @@ paintera-convert to-paintera \
 
 		@CommandLine.Option(
 			names = ["--spark-master"],
-			required = false
+			required = false,
+			description = ["" + "Spark master URL. Defaults to local[X] where X is the number of cores, up to 24"]
 		)
 		var sparkMaster: String? = null
 
@@ -178,33 +127,20 @@ paintera-convert to-paintera \
 				return exceptions[0].exitCode
 			}
 
-			return try {
-				val conf = SparkConf().setAppName(MethodHandles.lookup().lookupClass().simpleName)
-				sparkMaster?.let { conf.setMaster(it) }
-				try {
-					if (conf["spark.master"] === null)
-						throw NoSparkMasterSpecified("--spark-master")
-				} catch (_: NoSuchElementException) {
-					throw NoSparkMasterSpecified("--spark-master")
-				}
-				JavaSparkContext(conf).use { sc ->
+			var exitCode = runCatching {
+				JavaSparkContext(newSparkConf(sparkMaster)).use { sc ->
 					datasets.forEach { dataset, (converter, parameters) ->
 						println("Converting dataset `$dataset'")
 						converter.convert(sc, parameters, overwriteExisting)
 					}
+					0
 				}
-				0
-			} catch (conversionError: ConversionException) {
-				System.err.println(conversionError.message)
-				conversionError.exitCode
-			} catch (error: Exception) {
-				LOG.error(error) { "Unable to convert into Paintera dataset" }
-				PainteraConvert.EXIT_CODE_EXECUTION_EXCEPTION
+			}.getOrElse { cause ->
+				LOG.error(cause) { "Unable to convert into Paintera dataset" }
+				(cause as? ConversionException)?.exitCode ?: EXIT_CODE_EXECUTION_EXCEPTION
 			}
-
+			return exitCode
 		}
-
-
 	}
 
 }
@@ -451,9 +387,10 @@ class ContainerSpecificParameters {
 		get() = scales.size
 
 	val downsamplingBlockSizes: Array<SpatialIntArray>
-		get() = fillUpTo((_downsamplingBlockSizes
-			?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
-			?: arrayOf(blockSize), numScales)
+		get() = fillUpTo(
+			(_downsamplingBlockSizes
+				?: globalParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
+				?: arrayOf(blockSize), numScales)
 
 	val reverseArrayAttributes: Boolean
 		get() = _reverseArrayAttributes ?: globalParameters.reverseArrayAttributes
@@ -557,9 +494,10 @@ class DatasetSpecificParameters {
 		get() = scales.size
 
 	val downsamplingBlockSizes: Array<SpatialIntArray>
-		get() = fillUpTo((_downsamplingBlockSizes
-			?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
-			?: arrayOf(blockSize), numScales)
+		get() = fillUpTo(
+			(_downsamplingBlockSizes
+				?: containerParameters.downsamplingBlockSizes).takeUnless { it.isEmpty() }
+				?: arrayOf(blockSize), numScales)
 
 	val reverseArrayAttributes: Boolean
 		get() = _reverseArrayAttributes ?: containerParameters.reverseArrayAttributes
@@ -636,15 +574,6 @@ class SpatialDoubleArray(private val x: Double, private val y: Double, private v
 }
 
 
-internal fun String.n5Reader() = N5Factory.createReader(this)
-
-internal fun String.n5Writer(builder: GsonBuilder? = null) = builder?.let {
-	N5Factory().let { factory ->
-		factory.gsonBuilder(builder)
-		factory.openWriter(this)
-	}
-} ?: N5Factory.createWriter(this)
-
 fun N5Reader.getDoubleArrayAttribute(dataset: String, attribute: String) = try {
 	getAttribute(dataset, attribute, DoubleArray::class.java)
 } catch (e: ClassCastException) {
@@ -653,8 +582,6 @@ fun N5Reader.getDoubleArrayAttribute(dataset: String, attribute: String) = try {
 
 @Throws(IOException::class)
 fun N5Writer.setPainteraDataType(group: String, type: String) = setAttribute(group, PAINTERA_DATA_KEY, mapOf(Pair(TYPE_KEY, type)))
-
-fun defaultGsonBuilder(): GsonBuilder = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
 
 const val LABEL_BLOCK_LOOKUP_KEY = "labelBlockLookup"
 
