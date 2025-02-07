@@ -43,7 +43,7 @@ class ToScalar : Callable<Int> {
 		names = ["--block-size"],
 		required = false,
 		split = ",",
-		description = ["" + "Block size for output dataset. Will default to block size of input dataset if not specified."],
+		description = ["Block size for output dataset. Will default to block size of input dataset if not specified."],
 		defaultValue = "64,64,64"
 	)
 	private lateinit var blockSize: IntArray
@@ -52,14 +52,14 @@ class ToScalar : Callable<Int> {
 		names = ["--consider-fragment-segment-assignment"],
 		required = false,
 		defaultValue = "false",
-		description = ["" + "Consider fragment-segment-assignment inside Paintera dataset. Will be ignored if not a Paintera dataset"]
+		description = ["Consider fragment-segment-assignment inside Paintera dataset. Will be ignored if not a Paintera dataset"]
 	)
 	internal var considerFragmentSegmentAssignment: Boolean = false
 
 	@CommandLine.Option(
 		names = ["--spark-master"],
 		required = false,
-		description = ["" + "Spark master URL. Defaults to local[X] where X is the number of cores, up to 24"]
+		description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. loca[24] )."]
 	)
 	var sparkMaster: String? = null
 
@@ -69,7 +69,7 @@ class ToScalar : Callable<Int> {
 		required = false,
 		converter = [ExtractHighestResolutionLabelDataset.LookupPair.Converter::class],
 		paramLabel = "from=to",
-		description = ["" + "Add additional lookup-values in the format `from=to'. Warning: Consistency with fragment-segment-assignment is not enforced."]
+		description = ["Add additional lookup-values in the format `from=to'. Warning: Consistency with fragment-segment-assignment is not enforced."]
 	)
 	internal var additionalAssignments: Array<ExtractHighestResolutionLabelDataset.LookupPair>? = null
 

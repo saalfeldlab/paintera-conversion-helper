@@ -46,21 +46,25 @@ import kotlin.system.exitProcess
 		"" +
 				"The following parameters of conversion can be set at global, container, or dataset level:",
 		"",
-		"    Scales:  A list of 3-tuples of integers  or single integers that determine the downsampling and the number of mipmap levels.",
-		"    Block Size:  A 3-tuple of integers that specifies the block size of s0 data set that is being copied (or copy-converted). Defaults to (64, 64, 64)",
-		"    Downsampling block sizes:  A list of 3-tuples of integers that specify the block size at each scale level. " +
-				"If fewer downsampling block sizes than scales are specified, the unspecified downsampling block sizes default to the block size of the lowest resolution dataset sN for which a block size is specified.",
-		"    Resolution:  3-tuple of floating point values to specify resolution (physical extent) of a voxel.  " +
+		"    Scales:",
+		"       A list of 3-tuples of integers  or single integers that determine the downsampling and the number of\n\t\tmipmap levels.",
+		"    Block Size:",
+		"       A 3-tuple of integers that specifies the block size of s0 data set that is being copied\n\t\t(or copy-converted). Defaults to (64, 64, 64)",
+		"    Downsampling block sizes:",
+		"       A list of 3-tuples of integers that specify the block size at each scale level. " +
+				"If fewer downsampling block sizes than scales are specified, the unspecified downsampling block sizes\n\t\tdefault to the block size of the lowest resolution dataset sN for which a block size is specified.",
+		"    Resolution:",
+		"       3-tuple of floating point values to specify resolution (physical extent) of a voxel.  " +
 				"Defaults to (1.0, 1.0, 1.0) or is inferred from the input data if available and not specified.",
-		"    Offset:  3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in some arbitrary coordinate space defined by the resolution.  " +
+		"    Offset:",
+		"       3-tuple of floating point values to specify offset of the center of the top-left voxel of the data in\n\t\tsome arbitrary coordinate space defined by the resolution.  " +
 				"Defaults to (0.0, 0.0, 0.0) or is inferred from the input data if available and not specified.",
-		"    Reverse array attributes:  Reverse array attributes (currently only resolution and offset) when read from input data, e.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
+		"    Reverse array attributes:",
+		"       Reverse array attributes (currently only resolution and offset) when read from input data,\n\t\te.g. (3.0, 2.0, 1.0) will become (1.0, 2.0, 3.0).",
 		"    Label only:",
-		"        Winner takes all downsampling:  Use scalar label type by assigning majority label to downsampled voxels instead of non-scalar label type (https://github.com/saalfeldlab/paintera#label-multisets).",
+		"        Winner takes all downsampling:  Use scalar label type by assigning majority label to downsampled\n\t\tvoxels instead of non-scalar label type (https://github.com/saalfeldlab/paintera#label-multisets).",
 		"        Label block lookup block size:  A single integer that specifies the block size for the index stored in `label-to-block-mapping' that is stored as N5 dataset for each scale level.",
-		"",
-		"Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
-		"",
+		""
 	]
 )
 class PainteraConvert : Callable<Unit> {

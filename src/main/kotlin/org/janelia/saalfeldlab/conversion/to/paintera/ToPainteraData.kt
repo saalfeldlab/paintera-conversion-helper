@@ -74,7 +74,7 @@ paintera-convert to-paintera \
 		@CommandLine.Option(
 			names = ["--spark-master"],
 			required = false,
-			description = ["" + "Spark master URL. Defaults to local[X] where X is the number of cores, up to 24"]
+			description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. loca[24] )."]
 		)
 		var sparkMaster: String? = null
 

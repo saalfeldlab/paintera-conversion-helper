@@ -5,62 +5,24 @@
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
 
 ## Installation
-Releases can be download for Ubuntu and MacOS from the [Github Releases](https://github.com/saalfeldlab/paintera-conversion-helper/releases)
+Releases can be downloaded for Ubuntu and MacOS from the [Github Releases](https://github.com/saalfeldlab/paintera-conversion-helper/releases)
 
 ## Usage
 This conversion tool currently supports any number of datasets (raw or label) with a
 single (global) block size, and will output to a single N5 group in a paintera-compatible
 format.
 
-By default, spark will run locally:
+By default, spark will run locally with up to 24 workers. You can specify more with `--spark-master`:
 ```
 paintera-convert to-paintera [...]
 ```
 
 `paintera-convert` can also convert paintera label sources to scalar label datasets:
 ```
-paintera-convert extract-to-scalar [...]
+paintera-convert to-scalar [...]
 ```
-`extract-to-scalar` will the highest resolution scale level of a Paintera dataset as a scalar `uint64` Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added. See `extract-to-scalar --help` for more details.
+`to-scalar` will extract the highest resolution scale level of a Paintera dataset as a scalar `uint64` Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added. See `to-scalar --help` for more details.
 
-
-<details>
-<summary><b>Deprecated</b></summary>
-
-## Installation
-paintera-conversion-helper is available on conda on the `hanslovsky` channel:
-```
-conda install -cconda-forge -c hanslovsky paintera-conversion-helper
-```
-If necessary, you can install `openjdk` and `maven` from `conda-forge`:
-```
-conda install -c conda-forge maven openjdk
-```
-
-Alternatively, `paintera-conversion-helper` can be installed from PyPI through pip:
-```
-pip install paintera-conversion-helper
-```
-
-
-## Compile
-To compile the conversion helper into a jar, simply run
-```
-mvn -Denforcer.skip=true clean package
-```
-
-To run locally build a fat jar including Spark:
-```
-mvn -Denforcer.skip=true -PfatWithSpark clean package
-```
-
-To run on the Janelia cluster build a fat jar without Spark:
-```
-mvn -Denforcer.skip=true -Pfat clean package
-```
-
-
-</details>
 
 ### Usage Example
 To convert the `raw` and `neuron_ids` datasets of [sample A of the cremi challenge](https://cremi.org/data/) into Paintera format with mipmaps on Linux, assuming that you downloaded the data into `$HOME/Downloads`, run:
@@ -88,7 +50,6 @@ Usage: paintera-convert to-paintera [[--block-size=X,Y,Z|U] [--scale=X,Y,Z|U...]
                                     [--target-dataset=TARGET_DATASET] [[--type=TYPE]   ])...)... [--overwrite-existing]
                                     [--help] --output-container=OUTPUT_CONTAINER [--spark-master=<sparkMaster>]
                                     
-
 Options:
 
       --block-size=X,Y,Z|U   Use --container-block-size and --dataset-block-size for container and dataset specific
@@ -129,6 +90,7 @@ Options:
       --output-container=OUTPUT_CONTAINER
 
       --spark-master=<sparkMaster>
+                             Spark master URL. Default will run locally with up to 24 workers (e.g. loca[24] ).
 
       --container=CONTAINER
   -d, --dataset=DATASET
@@ -137,6 +99,28 @@ Options:
       --type=TYPE
       --help
 ```
+
+
+<details>
+<summary><b>Compile</b></summary>
+
+## Compile
+To compile the conversion helper into a jar, simply run
+```
+mvn -Denforcer.skip=true clean package
+```
+
+To run locally build a fat jar including Spark:
+```
+mvn -Denforcer.skip=true -PfatWithSpark clean package
+```
+
+To run on the Janelia cluster build a fat jar without Spark:
+```
+mvn -Denforcer.skip=true -Pfat clean package
+```
+
+</details>
 
 ### Janelia cluster
 
