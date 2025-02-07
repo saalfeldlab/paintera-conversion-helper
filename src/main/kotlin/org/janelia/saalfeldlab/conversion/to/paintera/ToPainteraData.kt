@@ -14,7 +14,23 @@ import java.io.File
 import java.io.IOException
 import java.net.URI
 import java.util.concurrent.Callable
+import kotlin.Throws
 import kotlin.system.exitProcess
+
+private const val EXAMPLE_COMMAND = """
+Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):
+
+paintera-convert to-paintera \
+  --scale 2,2,1 2,2,1 2,2,1 2 2 \
+  --reverse-array-attributes \
+  --output-container=paintera-converted.n5 \
+  --container=sample_A_20160501.hdf \
+    -d volumes/raw \
+      --target-dataset=volumes/raw2 \
+      --dataset-scale 3,3,1 3,3,1 2 2 \
+      --dataset-resolution 4,4,40.0 \
+    -d volumes/labels/neuron_ids
+"""
 
 class ToPainteraData {
 
@@ -42,24 +58,8 @@ class ToPainteraData {
 		sortOptions = false,
 		aliases = ["tp"],
 		usageHelpWidth = 120,
-		header = [
-			"Converts arbitrary 3D label and single- or multi-channel raw datasets in N5, Zarr, or HDF5 containers into a Paintera-friendly format."],
-		footer = [
-			"",
-			"Example command for sample A of the CREMI challenge (https://cremi.org/static/data/sample_A_20160501.hdf):",
-			"""
-paintera-convert to-paintera \
-  --scale 2,2,1 2,2,1 2,2,1 2 2 \
-  --reverse-array-attributes \
-  --output-container=paintera-converted.n5 \
-  --container=sample_A_20160501.hdf \
-    -d volumes/raw \
-      --target-dataset=volumes/raw2 \
-      --dataset-scale 3,3,1 3,3,1 2 2 \
-      --dataset-resolution 4,4,40.0 \
-    -d volumes/labels/neuron_ids
-""",
-		]
+		header = ["Converts arbitrary 3D label and single- or multi-channel raw datasets in N5, Zarr, or HDF5 containers into a Paintera-friendly format."],
+		footer = [EXAMPLE_COMMAND]
 	)
 	class Parameters : Callable<Int> {
 		@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1")
@@ -145,11 +145,15 @@ paintera-convert to-paintera \
 
 }
 
+private const val GLOBAL_HELP_TEXT = "Can be set globally, per container, or per dataset"
+
 class GlobalParameters : Callable<Unit> {
 	// TODO use custom class instead of IntArray
 	@CommandLine.Option(
 		names = ["--block-size"],
-		description = ["Use --container-block-size and --dataset-block-size for container and dataset specific block sizes, respectively."],
+		description = [
+			"Use --container-block-size and --dataset-block-size for container and dataset specific block sizes, respectively.",
+			GLOBAL_HELP_TEXT],
 		paramLabel = SpatialIntArray.PARAM_LABEL,
 		defaultValue = "64,64,64",
 		converter = [SpatialIntArray.Converter::class]
@@ -161,7 +165,9 @@ class GlobalParameters : Callable<Unit> {
 		arity = "1..*",
 		description = [
 			"Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
-			"Use --container-scale and --dataset-scale for container and dataset specific scales, respectively."],
+			"Use --container-scale and --dataset-scale for container and dataset specific scales, respectively.",
+			GLOBAL_HELP_TEXT
+		],
 		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
 		paramLabel = SpatialIntArray.PARAM_LABEL
@@ -170,7 +176,9 @@ class GlobalParameters : Callable<Unit> {
 
 	@CommandLine.Option(
 		names = ["--downsample-block-sizes"],
-		description = ["Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container and dataset specific block sizes, respectively."],
+		description = [
+			"Use --container-downsample-block-sizes and --dataset-downsample-block-sizes for container and dataset specific block sizes, respectively.",
+			GLOBAL_HELP_TEXT],
 		arity = "1..*",
 		split = "\\s",
 		converter = [SpatialIntArray.Converter::class],
@@ -182,7 +190,8 @@ class GlobalParameters : Callable<Unit> {
 		names = ["--reverse-array-attributes"],
 		description = [
 			"Reverse array attributes like resolution and offset, i.e. [x, y, z] -> [z, y, x].",
-			"Use --container-reverse-array-attributes and --dataset-reverse-array-attributes for container and dataset specific setting, respectively."],
+			"Use --container-reverse-array-attributes and --dataset-reverse-array-attributes for container and dataset specific setting, respectively.",
+			GLOBAL_HELP_TEXT],
 		defaultValue = "false"
 	)
 	var reverseArrayAttributes: Boolean = false
@@ -191,7 +200,8 @@ class GlobalParameters : Callable<Unit> {
 		names = ["--resolution"],
 		description = [
 			"Specify resolution (overrides attributes of input datasets, if any).",
-			"Use --container-resolution and --dataset-resolution for container and dataset specific resolution, respectively."],
+			"Use --container-resolution and --dataset-resolution for container and dataset specific resolution, respectively.",
+			GLOBAL_HELP_TEXT],
 		converter = [SpatialDoubleArray.Converter::class],
 		paramLabel = SpatialDoubleArray.PARAM_LABEL
 	)
@@ -201,7 +211,8 @@ class GlobalParameters : Callable<Unit> {
 		names = ["--offset"],
 		description = [
 			"Specify offset (overrides attributes of input datasets, if any).",
-			"Use --container-offset and --dataset-offset for container and dataset specific resolution, respectively."],
+			"Use --container-offset and --dataset-offset for container and dataset specific resolution, respectively.",
+			GLOBAL_HELP_TEXT],
 		converter = [SpatialDoubleArray.Converter::class],
 		paramLabel = SpatialDoubleArray.PARAM_LABEL
 	)
@@ -210,11 +221,11 @@ class GlobalParameters : Callable<Unit> {
 	@CommandLine.Option(
 		names = ["--max-num-entries", "-m"],
 		description = [
-			"" +
-					"Limit number of entries for non-scalar label types by N. If N is negative, do not limit number of entries.  " +
+			"Limit number of entries for non-scalar label types by N. If N is negative, do not limit number of entries.  " +
 					"If fewer values than the number of down-sampling layers are provided, the missing values are copied from the " +
 					"last available entry.  If none are provided, default to -1 for all levels.",
-			"Use --container-max-num-entries and --dataset-max-num-entries for container and dataset specific settings, respectively."],
+			"Use --container-max-num-entries and --dataset-max-num-entries for container and dataset specific settings, respectively.",
+			GLOBAL_HELP_TEXT],
 		arity = "1..*",
 		paramLabel = "N"
 	)
@@ -224,7 +235,8 @@ class GlobalParameters : Callable<Unit> {
 		names = ["--label-block-lookup-n5-block-size"],
 		description = [
 			"Set the block size for the N5 container for the label-block-lookup.",
-			"Use --container-label-block-lookup-n5-block-size and --dataset-label-block-lookup-n5-block-size for container and dataset specific settings, respectively."],
+			"Use --container-label-block-lookup-n5-block-size and --dataset-label-block-lookup-n5-block-size for container and dataset specific settings, respectively.",
+			GLOBAL_HELP_TEXT],
 		defaultValue = "10000",
 		paramLabel = "N"
 	)
@@ -235,7 +247,8 @@ class GlobalParameters : Callable<Unit> {
 		names = ["--winner-takes-all-downsampling"],
 		description = [
 			"Use scalar label type with winner-takes-all downsampling.",
-			"Use --container-winner-takes-all-downsampling and --dataset-winner-takes-all-downsampling for container and dataset specific settings, respectively."],
+			"Use --container-winner-takes-all-downsampling and --dataset-winner-takes-all-downsampling for container and dataset specific settings, respectively.",
+			GLOBAL_HELP_TEXT],
 		defaultValue = "false"
 	)
 	var winnerTakesAllDownsampling: Boolean = false
