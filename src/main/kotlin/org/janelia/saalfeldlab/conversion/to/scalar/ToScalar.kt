@@ -2,14 +2,11 @@ package org.janelia.saalfeldlab.paintera.conversion.to.scalar
 
 import gnu.trove.map.TLongLongMap
 import gnu.trove.map.hash.TLongLongHashMap
-import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.*
-import org.janelia.saalfeldlab.label.spark.N5Helpers
-import org.janelia.saalfeldlab.paintera.conversion.*
+import org.janelia.saalfeldlab.conversion.to.newSparkConf
 import picocli.CommandLine
 import java.io.IOException
-import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
@@ -46,7 +43,7 @@ class ToScalar : Callable<Int> {
 		names = ["--block-size"],
 		required = false,
 		split = ",",
-		description = ["" + "Block size for output dataset. Will default to block size of input dataset if not specified."],
+		description = ["Block size for output dataset. Will default to block size of input dataset if not specified."],
 		defaultValue = "64,64,64"
 	)
 	private lateinit var blockSize: IntArray
@@ -55,13 +52,14 @@ class ToScalar : Callable<Int> {
 		names = ["--consider-fragment-segment-assignment"],
 		required = false,
 		defaultValue = "false",
-		description = ["" + "Consider fragment-segment-assignment inside Paintera dataset. Will be ignored if not a Paintera dataset"]
+		description = ["Consider fragment-segment-assignment inside Paintera dataset. Will be ignored if not a Paintera dataset"]
 	)
 	internal var considerFragmentSegmentAssignment: Boolean = false
 
 	@CommandLine.Option(
 		names = ["--spark-master"],
-		required = false
+		required = false,
+		description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. loca[24] )."]
 	)
 	var sparkMaster: String? = null
 
@@ -71,7 +69,7 @@ class ToScalar : Callable<Int> {
 		required = false,
 		converter = [ExtractHighestResolutionLabelDataset.LookupPair.Converter::class],
 		paramLabel = "from=to",
-		description = ["" + "Add additional lookup-values in the format `from=to'. Warning: Consistency with fragment-segment-assignment is not enforced."]
+		description = ["Add additional lookup-values in the format `from=to'. Warning: Consistency with fragment-segment-assignment is not enforced."]
 	)
 	internal var additionalAssignments: Array<ExtractHighestResolutionLabelDataset.LookupPair>? = null
 
@@ -137,20 +135,13 @@ class ToScalar : Callable<Int> {
 			sparkMaster: String?
 		): Int {
 
-			val conf = SparkConf().setAppName(MethodHandles.lookup().lookupClass().name)
-			sparkMaster?.let { conf.setMaster(it) }
-			try {
-				if (conf["spark.master"] === null)
-					throw NoSparkMasterSpecified("--spark-master")
-			} catch (_: NoSuchElementException) {
-				throw NoSparkMasterSpecified("--spark-master")
-			}
+			val conf = newSparkConf(sparkMaster)
 
 			JavaSparkContext(conf).use { sc ->
 				ExtractHighestResolutionLabelDataset.extractNoGenerics(
 					sc,
-					{ N5Helpers.n5Reader(inputContainer) },
-					{ N5Helpers.n5Writer(outputContainer) },
+					{ createReader(inputContainer) },
+					{ createWriter(outputContainer) },
 					inputDataset,
 					outputDataset,
 					blockSize,

@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.conversion.to.paintera
 
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.createWriter
 import org.janelia.saalfeldlab.label.spark.N5Helpers
 
 abstract class DatasetConverter(val info: DatasetInfo) {
@@ -15,7 +16,7 @@ abstract class DatasetConverter(val info: DatasetInfo) {
 
 
 		val downsamplingFactor = DoubleArray(parameters.blockSize.array.size) { 1.0 }
-		val writer = info.outputContainer.n5Writer(defaultGsonBuilder())
+		val writer = createWriter(info.outputContainer)
 		writer.setAttribute(scaleGroup(info.outputGroup, 0), DOWNSAMPLING_FACTORS, downsamplingFactor)
 
 		for ((scaleNum, scale) in parameters.scales.withIndex()) {

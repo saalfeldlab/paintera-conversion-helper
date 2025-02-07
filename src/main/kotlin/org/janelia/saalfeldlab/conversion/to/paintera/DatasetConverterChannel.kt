@@ -7,6 +7,8 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
+import org.janelia.saalfeldlab.conversion.createReader
+import org.janelia.saalfeldlab.conversion.createWriter
 import org.janelia.saalfeldlab.n5.DataType
 import java.io.IOException
 
@@ -16,7 +18,7 @@ class DatasetConverterChannel(info: DatasetInfo) : DatasetConverter(info) {
 		val blockSize = parameters.blockSize.array
 		val scales = parameters.scales.map { it.array }.toTypedArray()
 		val downsamplingBlockSizes = parameters.downsamplingBlockSizes.map { it.array }.toTypedArray()
-		when (info.inputContainer.n5Reader()?.getDatasetAttributes(info.inputDataset)?.dataType) {
+		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
 			DataType.INT8 -> handleChannelDataset<ByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
 			DataType.UINT8 -> handleChannelDataset<UnsignedByteType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
 			DataType.INT16 -> handleChannelDataset<ShortType>(sc, info, blockSize, scales, downsamplingBlockSizes, overwriteExisiting)
@@ -61,6 +63,6 @@ private fun <T> handleChannelDataset(
 		reverseArrayAttributes
 	)
 
-	datasetInfo.outputContainer.n5Writer(defaultGsonBuilder()).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
+	createWriter(datasetInfo.outputContainer).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
 
 }

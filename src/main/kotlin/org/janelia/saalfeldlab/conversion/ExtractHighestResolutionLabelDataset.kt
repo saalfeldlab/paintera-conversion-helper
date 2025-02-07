@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
-import org.janelia.saalfeldlab.n5.universe.N5Factory
 import picocli.CommandLine
 import scala.Tuple2
 import java.io.IOException
@@ -50,11 +49,6 @@ object ExtractHighestResolutionLabelDataset {
 
 	private fun isValidType(dataType: DataType): Boolean {
 		return VALID_TYPES.contains(dataType)
-	}
-
-	@JvmStatic
-	fun main(args: Array<String>) {
-		CommandLine(Args()).execute(*args)
 	}
 
 	@Throws(IOException::class)
@@ -288,78 +282,6 @@ object ExtractHighestResolutionLabelDataset {
 				val split = s.split("=".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
 				return LookupPair(split[0].toLong(), split[1].toLong())
 			}
-		}
-	}
-
-	class Args : Callable<Void?>, Serializable {
-		@CommandLine.Option(names = ["--input-container", "-i"], required = true)
-		var inputContainer: String? = null
-
-		@CommandLine.Option(
-			names = ["--input-dataset", "-I"], required = true, description = ["" +
-					"Can be a Paintera dataset, multi-scale N5 group, or regular dataset. " +
-					"Highest resolution dataset will be used for Paintera dataset (data/s0) and multi-scale group (s0)."]
-		)
-		var inputDataset: String? = null
-
-		@CommandLine.Option(names = ["--output-container", "-o"], required = true)
-		var outputContainer: String? = null
-
-		@CommandLine.Option(names = ["--output-dataset", "-O"], required = false, description = ["defaults to input dataset"])
-		var outputDataset: String? = null
-
-		@CommandLine.Option(
-			names = ["--block-size"], required = false, split = ",", description = ["" +
-					"Block size for output dataset. Will default to block size of input dataset if not specified."]
-		)
-		var blockSize: IntArray? = null
-
-		@CommandLine.Option(
-			names = ["--consider-fragment-segment-assignment"], required = false, defaultValue = "false", description = ["" +
-					"Consider fragment-segment-assignment inside Paintera dataset. Will be ignored if not a Paintera dataset"]
-		)
-		var considerFragmentSegmentAssignment: Boolean? = false
-
-		@CommandLine.Option(
-			names = ["--additional-assignment"], split = ",", required = false, converter = [LookupPair.Converter::class], description = ["" +
-					"Add additional lookup-values in the format `k=v'. Warning: Consistency with fragment-segment-assignment is not ensured."]
-		)
-		var additionalAssignments: Array<LookupPair>? = null
-
-		@Throws(IOException::class)
-		override fun call(): Void? {
-			outputDataset = if (outputDataset == null) inputDataset else outputDataset
-
-			if (inputContainer == outputContainer && inputDataset == outputDataset) {
-				throw IOException(
-					String.format(
-						"Output dataset %s would overwrite input dataset %s in output container %s (same as input container %s)",
-						outputDataset,
-						inputDataset,
-						outputContainer,
-						inputContainer
-					)
-				)
-			}
-
-			val conf = SparkConf().setAppName(MethodHandles.lookup().lookupClass().name)
-
-			val assignment: TLongLongMap = TLongLongHashMap()
-			if (additionalAssignments != null) for (pair in additionalAssignments!!) assignment.put(pair.key, pair.value)
-
-			JavaSparkContext(conf).use { sc ->
-				extract(
-					sc,
-					{ N5Factory.createReader(inputContainer) },
-					{ N5Factory.createWriter(outputContainer) },
-					inputDataset,
-					outputDataset,
-					blockSize,
-					considerFragmentSegmentAssignment ?: false,
-					assignment
-				)
-			}
-			return null
 		}
 	}
 
