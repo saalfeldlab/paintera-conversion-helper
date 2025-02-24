@@ -39,7 +39,6 @@ class PainteraConvertTest {
 	}
 
 
-
 	@ParameterizedTest
 	@FieldSource("extensionParams")
 	fun testWinnerTakesAll(extension: String) {
