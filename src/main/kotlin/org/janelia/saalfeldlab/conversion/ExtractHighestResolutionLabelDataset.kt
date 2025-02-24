@@ -7,6 +7,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
+import net.imglib2.algorithm.util.Singleton
+import net.imglib2.algorithm.util.Singleton.ThrowingSupplier
 import net.imglib2.converter.Converter
 import net.imglib2.converter.Converters
 import net.imglib2.type.NativeType
@@ -16,7 +18,8 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.util.Pair
 import net.imglib2.view.Views
-import org.apache.spark.SparkConf
+import org.apache.http.client.utils.URIBuilder
+import org.apache.http.message.BasicNameValuePair
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
@@ -30,22 +33,16 @@ import picocli.CommandLine
 import scala.Tuple2
 import java.io.IOException
 import java.io.Serializable
-import java.lang.invoke.MethodHandles
 import java.util.Optional
-import java.util.concurrent.Callable
 import java.util.function.Supplier
 import java.util.stream.Collectors
-import java.util.stream.Stream
 
 object ExtractHighestResolutionLabelDataset {
 	private val LOG = KotlinLogging.logger { }
 
-	private val VALID_TYPES: Set<DataType> = Stream
-		.of(*DataType.entries.toTypedArray())
-		.filter { other: DataType? -> DataType.UINT64 == other }
-		.filter { other: DataType? -> DataType.UINT32 == other }
-		.filter { other: DataType? -> DataType.INT64 == other }
-		.collect(Collectors.toSet())
+	private val VALID_TYPES: Set<DataType> = setOf(
+		DataType.UINT64, DataType.UINT32, DataType.INT64
+	)
 
 	private fun isValidType(dataType: DataType): Boolean {
 		return VALID_TYPES.contains(dataType)
@@ -106,17 +103,18 @@ object ExtractHighestResolutionLabelDataset {
 		considerFragmentSegmentAssignment: Boolean,
 		assignment: TLongLongMap
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>?, OUT : NativeType<OUT>?, OUT : IntegerType<OUT>? {
-		if (!n5in.get().exists(datasetIn)) {
-			throw IOException(String.format("%s does not exist in container %s", datasetIn, n5in.get()))
+		val n5InLocal = n5in.get()
+		if (!n5InLocal.exists(datasetIn)) {
+			throw IOException(String.format("%s does not exist in container %s", datasetIn, n5InLocal))
 		}
 
-		if (!n5in.get().datasetExists(datasetIn)) {
-			if (n5in.get().listAttributes(datasetIn).containsKey("painteraData")) {
+		if (!n5InLocal.datasetExists(datasetIn)) {
+			if (n5InLocal.listAttributes(datasetIn).containsKey("painteraData")) {
 				try {
 					val updatedAdditionalEntries: MutableMap<String?, Any> = HashMap(additionalAttributes)
-					Optional.ofNullable(n5in.get().getAttribute(datasetIn, "maxId", Long::class.javaPrimitiveType)).ifPresent { id: Long -> updatedAdditionalEntries["maxId"] = id }
+					Optional.ofNullable(n5InLocal.getAttribute(datasetIn, "maxId", Long::class.javaPrimitiveType)).ifPresent { id: Long -> updatedAdditionalEntries["maxId"] = id }
 					if (considerFragmentSegmentAssignment) {
-						val loadedAssignments = readAssignments(n5in.get(), "$datasetIn/fragment-segment-assignment")
+						val loadedAssignments = readAssignments(n5InLocal, "$datasetIn/fragment-segment-assignment")
 						loadedAssignments.putAll(assignment)
 						assignment.clear()
 						assignment.putAll(loadedAssignments)
@@ -127,9 +125,9 @@ object ExtractHighestResolutionLabelDataset {
 					)
 					return
 				} catch (e: NoValidDatasetException) {
-					throw NoValidDatasetException(n5in.get(), datasetIn)
+					throw NoValidDatasetException(n5InLocal, datasetIn)
 				}
-			} else if (n5in.get().exists("$datasetIn/s0")) {
+			} else if (n5InLocal.exists("$datasetIn/s0")) {
 				try {
 					extract(
 						sc, n5in, n5out, "$datasetIn/s0", datasetOut, blockSizeOut, outputTypeSupplier, additionalAttributes,
@@ -137,14 +135,14 @@ object ExtractHighestResolutionLabelDataset {
 					)
 					return
 				} catch (e: NoValidDatasetException) {
-					throw NoValidDatasetException(n5in.get(), datasetIn)
+					throw NoValidDatasetException(n5InLocal, datasetIn)
 				}
-			} else throw NoValidDatasetException(n5in.get(), datasetIn)
+			} else throw NoValidDatasetException(n5InLocal, datasetIn)
 		}
 
 		val outputIsLabelMultiset = outputTypeSupplier.get() is LabelMultisetType
 
-		val attributesIn = n5in.get().getDatasetAttributes(datasetIn)
+		val attributesIn = n5InLocal.getDatasetAttributes(datasetIn)
 		val dimensions = attributesIn.dimensions.clone()
 		val blockSize = blockSizeOut ?: attributesIn.blockSize
 		val dataType = if (outputIsLabelMultiset
@@ -169,15 +167,15 @@ object ExtractHighestResolutionLabelDataset {
 //            }
 //        }
 		Optional
-			.ofNullable(n5in.get().getAttribute(datasetIn, "resolution", DoubleArray::class.java))
+			.ofNullable(n5InLocal.getAttribute(datasetIn, "resolution", DoubleArray::class.java))
 			.ifPresent(ThrowingConsumer.unchecked { r: DoubleArray -> n5out.get().setAttribute(datasetOut, "resolution", r) })
 
 		Optional
-			.ofNullable(n5in.get().getAttribute(datasetIn, "offset", DoubleArray::class.java))
+			.ofNullable(n5InLocal.getAttribute(datasetIn, "offset", DoubleArray::class.java))
 			.ifPresent(ThrowingConsumer.unchecked { o: DoubleArray -> n5out.get().setAttribute(datasetOut, "offset", o) })
 
 		Optional
-			.ofNullable(n5in.get().getAttribute(datasetIn, "maxId", Long::class.javaPrimitiveType))
+			.ofNullable(n5InLocal.getAttribute(datasetIn, "maxId", Long::class.javaPrimitiveType))
 			.ifPresent(ThrowingConsumer.unchecked { id: Long -> n5out.get().setAttribute(datasetOut, "maxId", id) })
 
 		additionalAttributes.entries.forEach(ThrowingConsumer.unchecked { e: Map.Entry<String?, Any> -> n5out.get().setAttribute(datasetOut, e.key, e.value) })
@@ -188,7 +186,7 @@ object ExtractHighestResolutionLabelDataset {
 			LOG.warn { "Unable to write attribute { ${N5LabelMultisets.LABEL_MULTISETTYPE_KEY}: $outputIsLabelMultiset }" }
 			LOG.debug(e) { "Unable to write attribute { ${N5LabelMultisets.LABEL_MULTISETTYPE_KEY}: $outputIsLabelMultiset }" }
 		}
-		val isLabelMultiset = N5LabelMultisets.isLabelMultisetType(n5in.get(), datasetIn)
+		val isLabelMultiset = N5LabelMultisets.isLabelMultisetType(n5InLocal, datasetIn)
 
 		if (!(DataType.UINT8 == attributesIn.dataType && isLabelMultiset || isValidType(attributesIn.dataType) && !isLabelMultiset)) throw InvalidTypeException(attributesIn.dataType, isLabelMultiset)
 
@@ -201,9 +199,18 @@ object ExtractHighestResolutionLabelDataset {
 		sc
 			.parallelize(blocks)
 			.foreach { blockWithPosition: Tuple2<Tuple2<LongArray, LongArray>, LongArray> ->
-				val input: RandomAccessibleInterval<IN> =
-					if (isLabelMultiset) N5LabelMultisets.openLabelMultiset(n5in.get(), datasetIn) as RandomAccessibleInterval<IN>
-					else N5Utils.open(n5in.get(), datasetIn)
+
+				val n5Local = n5in.get()
+				val imgCacheKey = URIBuilder(n5Local.uri).setParameters(
+					BasicNameValuePair("call", "extract-highest-resolution-label-dataset"),
+					BasicNameValuePair("dataset", datasetIn)
+				).toString()
+
+				val input: RandomAccessibleInterval<IN> = Singleton.get(imgCacheKey, ThrowingSupplier {
+					if (isLabelMultiset) N5LabelMultisets.openLabelMultiset(n5Local, datasetIn) as RandomAccessibleInterval<IN>
+					else N5Utils.open(n5Local, datasetIn)
+				})
+
 				val block: RandomAccessibleInterval<IN> = Views.interval(
 					input,
 					blockWithPosition._1()._1(),
@@ -221,7 +228,16 @@ object ExtractHighestResolutionLabelDataset {
 					block, getAppropriateConverter(TLongLongHashMap(keys, values)),
 					outputTypeSupplier.get()
 				)
-				N5Utils.saveBlock(converted, n5out.get(), datasetOut, attributes, blockWithPosition._2())
+
+				val n5LocalOut = n5out.get()
+				val writerCacheKey = URIBuilder(n5LocalOut.uri).setParameters(
+					BasicNameValuePair("call", "extract-highest-resolution-label-dataset"),
+					BasicNameValuePair("type", "writer")
+				).toString()
+
+				val writer = Singleton.get(writerCacheKey, ThrowingSupplier { n5LocalOut })
+
+				N5Utils.saveBlock(converted, writer, datasetOut, attributes, blockWithPosition._2())
 			}
 	}
 
