@@ -26,6 +26,7 @@
 
     <properties>
         <enforcer.skip>true</enforcer.skip>
+        <extra-enforcer-rules.version>1.9.0</extra-enforcer-rules.version>
         <main-class>org.janelia.saalfeldlab.conversion.PainteraConvert</main-class>
 
         <license.licenseName>GNU General Public License v2.0</license.licenseName>
@@ -35,10 +36,10 @@
         <releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
         <package-name>org.janelia.saalfeldlab.conversion</package-name>
 
-        <scijava.jvm.version>21</scijava.jvm.version>
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 
-        <kotlin.compiler.jvmTarget>21</kotlin.compiler.jvmTarget>
+        <scijava.jvm.version>17</scijava.jvm.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <kotlin.compiler.jvmTarget>${scijava.jvm.version}</kotlin.compiler.jvmTarget>
         <kotlin.version>1.9.24</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
@@ -47,10 +48,13 @@
         <n5-google-cloud.version>4.1.2</n5-google-cloud.version>
         <n5-universe.version>2.0.1</n5-universe.version>
         <n5-zarr.version>1.4.0</n5-zarr.version>
+        <n5-hdf5.version>2.2.0</n5-hdf5.version>
         <n5-imglib2.version>7.0.0</n5-imglib2.version>
-        <imglib2-label-multisets.version>0.13.2</imglib2-label-multisets.version>
-        <label-utilities-spark.version>1.0.0</label-utilities-spark.version>
-        <spark.version>3.5.1</spark.version>
+        <imglib2-label-multisets.version>0.14.0</imglib2-label-multisets.version>
+        <label-utilities-spark.version>1.1.0-SNAPSHOT</label-utilities-spark.version>
+        <n5-spark.version>4.0.0-SNAPSHOT</n5-spark.version>
+        <spark.version>3.5.4</spark.version>
+        <spark-core_2.12.version>${spark.version}</spark-core_2.12.version>
         <jackson.version>2.15.4</jackson.version>
 
         <junit-jupiter.version>5.11.2</junit-jupiter.version>
@@ -158,6 +162,10 @@
         </dependency>
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
+            <artifactId>n5-aws-s3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-imglib2</artifactId>
         </dependency>
         <dependency>
@@ -180,7 +188,7 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-spark</artifactId>
-            <version>3.7.3</version>
+            <version>${n5-spark.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>ome</groupId>
