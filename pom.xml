@@ -51,8 +51,8 @@
         <n5-hdf5.version>2.2.0</n5-hdf5.version>
         <n5-imglib2.version>7.0.0</n5-imglib2.version>
         <imglib2-label-multisets.version>0.14.0</imglib2-label-multisets.version>
-        <label-utilities-spark.version>1.1.0-SNAPSHOT</label-utilities-spark.version>
-        <n5-spark.version>4.0.0-SNAPSHOT</n5-spark.version>
+        <label-utilities-spark.version>1.1.0</label-utilities-spark.version>
+        <n5-spark.version>4.0.0</n5-spark.version>
         <spark.version>3.5.4</spark.version>
         <spark-core_2.12.version>${spark.version}</spark-core_2.12.version>
         <jackson.version>2.15.4</jackson.version>
