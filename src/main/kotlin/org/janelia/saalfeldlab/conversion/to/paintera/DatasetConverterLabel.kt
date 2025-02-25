@@ -362,6 +362,7 @@ private fun <I, O> handleLabelDataset(
 			reverse
 		)
 
+
 		writer.setAttribute(info.outputGroup, "maxId", writer.getAttribute(originalResolutionOutputDataset, "maxId", Long::class.java))
 
 		ExtractUniqueLabelsPerBlock.extractUniqueLabels(

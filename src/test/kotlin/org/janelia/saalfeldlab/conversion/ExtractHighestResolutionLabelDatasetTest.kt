@@ -41,7 +41,7 @@ class ExtractHighestResolutionLabelDatasetTest {
 	@Test
 	@Throws(IOException::class)
 	fun testExtractHighestResolutionLabelDataset() {
-		val conf = newSparkConf("local", "testExtractHighestResolutionLabelDataset")
+		val conf = newSparkConf("testExtractHighestResolutionLabelDataset", "local[1]")
 
 		JavaSparkContext(conf).use { sc ->
 			val tmpDir = Files.createTempDirectory("pch-extract-highest-resolution-")

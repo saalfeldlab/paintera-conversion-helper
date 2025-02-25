@@ -9,18 +9,16 @@ private fun Any.nameFromAny() = (this::class.java.enclosingClass ?: this::class.
  */
 internal const val MAX_DEFAULT_PARALLELISM = 24
 
-internal fun defaultSparkMaster() : String {
+internal fun defaultSparkMaster(): String {
 	val parallelism = Runtime.getRuntime().availableProcessors().coerceAtMost(MAX_DEFAULT_PARALLELISM)
 	return "local[$parallelism]"
 }
 
-
-internal fun Any.newSparkConf(
-	sparkMaster : String? = null,
-	appName : String = nameFromAny(),
-) : SparkConf {
-	return SparkConf().apply {
-		setAppName(appName)
-		setMaster(sparkMaster ?: System.getProperty("spark.master") ?: defaultSparkMaster())
-	}
+internal fun newSparkConf(appName: String, sparkMaster: String? = null): SparkConf {
+	return SparkConf()
+		.setAppName(appName)
+		.setMaster(sparkMaster ?: System.getProperty("spark.master") ?: defaultSparkMaster())
 }
+
+internal fun Any.newSparkConf(sparkMaster: String? = null) = newSparkConf(nameFromAny(), sparkMaster)
+
