@@ -10,10 +10,6 @@ on:
 
 
 
-env:
-  DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
-  PRIMARY_BUNDLE_ID: org.janelia.saalfeldlab.PainteraConvert # Unique to your app, often the launcher class
-
 jobs:
   build_installers:
     name: Build Installers

@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>37.0.0</version>
+        <version>44.0.0</version>
     </parent>
 
     <groupId>org.janelia.saalfeldlab</groupId>
@@ -26,7 +26,9 @@
 
     <properties>
         <enforcer.skip>true</enforcer.skip>
-        <extra-enforcer-rules.version>1.9.0</extra-enforcer-rules.version>
+        <javadoc.skip>true</javadoc.skip>
+        <maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
+
         <main-class>org.janelia.saalfeldlab.conversion.PainteraConvert</main-class>
 
         <license.licenseName>GNU General Public License v2.0</license.licenseName>
@@ -36,21 +38,12 @@
         <releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
         <package-name>org.janelia.saalfeldlab.conversion</package-name>
 
-
-        <scijava.jvm.version>17</scijava.jvm.version>
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <scijava.jvm.version>25</scijava.jvm.version>
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <kotlin.compiler.jvmTarget>${scijava.jvm.version}</kotlin.compiler.jvmTarget>
-        <kotlin.version>1.9.24</kotlin.version>
+        <kotlin.version>2.3.0</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
-        <n5.version>3.3.1</n5.version>
-        <n5-aws-s3.version>4.2.2</n5-aws-s3.version>
-        <n5-google-cloud.version>4.1.2</n5-google-cloud.version>
-        <n5-universe.version>2.0.1</n5-universe.version>
-        <n5-zarr.version>1.4.0</n5-zarr.version>
-        <n5-hdf5.version>2.2.0</n5-hdf5.version>
-        <n5-imglib2.version>7.0.0</n5-imglib2.version>
-        <imglib2-label-multisets.version>0.14.0</imglib2-label-multisets.version>
         <label-utilities-spark.version>1.1.0</label-utilities-spark.version>
         <n5-spark.version>4.0.0</n5-spark.version>
         <spark.version>3.5.4</spark.version>
@@ -58,6 +51,7 @@
         <jackson.version>2.15.4</jackson.version>
 
         <junit-jupiter.version>5.11.2</junit-jupiter.version>
+        <kotlin-logging-jvm.version>7.0.13</kotlin-logging-jvm.version>
 
         <!-- For JPackage -->
         <app.version>1.2.0</app.version>
@@ -148,6 +142,7 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
         </dependency>
 
         <dependency>
@@ -210,7 +205,7 @@
         <dependency>
             <groupId>io.github.oshai</groupId>
             <artifactId>kotlin-logging-jvm</artifactId>
-            <version>5.1.0</version>
+            <version>${kotlin-logging-jvm.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
