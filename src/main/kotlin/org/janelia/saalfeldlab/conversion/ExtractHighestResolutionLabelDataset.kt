@@ -24,6 +24,7 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GzipCompression
+import org.janelia.saalfeldlab.n5.Lz4Compression
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -150,22 +151,10 @@ object ExtractHighestResolutionLabelDataset {
 		else N5Utils.dataType(outputTypeSupplier.get())
 
 		n5out.get().createDataset(datasetOut, dimensions, blockSize, dataType, GzipCompression())
+//		n5out.get().createDataset(datasetOut, dimensions, blockSize, dataType, Lz4Compression())
 		val keys = assignment.keys()
 		val values = assignment.values()
 
-		// TODO automate copy of attributes if/when N5 separates attributes from dataset attributes
-//        for (Map.Entry<String, Class<?>> entry :n5in.get().listAttributes(datasetIn).entrySet()) {
-//            if (DATASET_ATTRIBUTES.contains(entry.getKey()))
-//                continue;
-//            try {
-//                Object attr = n5in.get().getAttribute(datasetIn, entry.getKey(), entry.getValue());
-//                LOG.debug("Copying attribute { {}: {} } of type {}", entry.getKey(), attr, entry.getValue());
-//                n5out.get().setAttribute(datasetOut, entry.getKey(), attr);
-//            } catch (IOException e) {
-//                LOG.warn("Unable to copy attribute { {}: {} }", entry.getKey(), entry.getValue());
-//                LOG.debug("Unable to copy attribute { {}: {} }", entry.getKey(), entry.getValue(), e);
-//            }
-//        }
 		Optional
 			.ofNullable(n5InLocal.getAttribute(datasetIn, "resolution", DoubleArray::class.java))
 			.ifPresent(ThrowingConsumer.unchecked { r: DoubleArray -> n5out.get().setAttribute(datasetOut, "resolution", r) })
@@ -221,7 +210,8 @@ object ExtractHighestResolutionLabelDataset {
 					dimensions,
 					blockSize,
 					N5Utils.dataType(outputTypeSupplier.get()),
-					GzipCompression()
+//					GzipCompression()
+					Lz4Compression()
 				)
 
 				val converted = Converters.convert(

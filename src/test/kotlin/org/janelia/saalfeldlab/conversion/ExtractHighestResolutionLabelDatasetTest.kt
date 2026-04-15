@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset.L
 import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset.extract
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
 import org.janelia.saalfeldlab.n5.GzipCompression
+import org.janelia.saalfeldlab.n5.Lz4Compression
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -84,7 +85,8 @@ class ExtractHighestResolutionLabelDatasetTest {
 				originalContainer,
 				highestResolution,
 				inputBlockSize,
-				GzipCompression()
+//				GzipCompression()
+				Lz4Compression()
 			)
 
 			originalContainer.setAttribute(painteraDataset, "painteraData", "")

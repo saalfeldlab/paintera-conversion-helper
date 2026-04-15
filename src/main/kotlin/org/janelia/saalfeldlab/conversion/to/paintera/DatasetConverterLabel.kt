@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
+import org.janelia.saalfeldlab.n5.Lz4Compression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
 import java.io.File
@@ -314,7 +315,8 @@ private fun <I, O> handleLabelDataset(
 			{ createWriter(info.outputContainer) },
 			originalResolutionOutputDataset,
 			Optional.of(initialBlockSize),
-			Optional.of(GzipCompression()), // TODO pass compression as parameter
+//			Optional.of(GzipCompression()), // TODO pass compression as parameter
+			Optional.of(Lz4Compression()), // TODO pass compression as parameter
 			Optional.empty(),
 			Optional.empty(),
 			overwriteExisting
@@ -358,7 +360,8 @@ private fun <I, O> handleLabelDataset(
 			initialBlockSize,
 			info.outputContainer,
 			originalResolutionOutputDataset,
-			GzipCompression(),
+//			GzipCompression(),
+			Lz4Compression(),
 			reverse
 		)
 
@@ -376,7 +379,8 @@ private fun <I, O> handleLabelDataset(
 
 		if (scales.isNotEmpty()) {
 			// TODO pass compression as parameter
-			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, GzipCompression())
+//			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, GzipCompression())
+			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, Lz4Compression())
 			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer, uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	}

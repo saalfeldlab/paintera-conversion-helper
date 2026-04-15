@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>44.0.0</version>
+        <version>37.0.0</version>
     </parent>
 
     <groupId>org.janelia.saalfeldlab</groupId>
@@ -38,12 +38,20 @@
         <releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
         <package-name>org.janelia.saalfeldlab.conversion</package-name>
 
-        <scijava.jvm.version>25</scijava.jvm.version>
+        <scijava.jvm.version>17</scijava.jvm.version>
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <kotlin.compiler.jvmTarget>${scijava.jvm.version}</kotlin.compiler.jvmTarget>
         <kotlin.version>2.3.0</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
+        <n5.version>3.3.1</n5.version>
+        <n5-aws-s3.version>4.2.2</n5-aws-s3.version>
+        <n5-google-cloud.version>4.1.2</n5-google-cloud.version>
+        <n5-universe.version>2.0.1</n5-universe.version>
+        <n5-zarr.version>1.4.0</n5-zarr.version>
+        <n5-hdf5.version>2.2.0</n5-hdf5.version>
+        <n5-imglib2.version>7.0.0</n5-imglib2.version>
+        <imglib2-label-multisets.version>0.15.1</imglib2-label-multisets.version>
         <label-utilities-spark.version>1.1.0</label-utilities-spark.version>
         <n5-spark.version>4.0.0</n5-spark.version>
         <spark.version>3.5.4</spark.version>
