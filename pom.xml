@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>37.0.0</version>
+        <version>44.0.0</version>
     </parent>
 
     <groupId>org.janelia.saalfeldlab</groupId>
@@ -43,16 +43,20 @@
         <kotlin.version>1.9.24</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
-        <n5.version>3.3.1</n5.version>
-        <n5-aws-s3.version>4.2.2</n5-aws-s3.version>
-        <n5-google-cloud.version>4.1.2</n5-google-cloud.version>
-        <n5-universe.version>2.0.1</n5-universe.version>
-        <n5-zarr.version>1.4.0</n5-zarr.version>
-        <n5-hdf5.version>2.2.0</n5-hdf5.version>
-        <n5-imglib2.version>7.0.0</n5-imglib2.version>
-        <imglib2-label-multisets.version>0.14.0</imglib2-label-multisets.version>
-        <label-utilities-spark.version>1.1.0</label-utilities-spark.version>
-        <n5-spark.version>4.0.0</n5-spark.version>
+        <n5-universe.version>3.0.1</n5-universe.version>
+        <n5.version>4.0.1</n5.version>
+        <n5-aws-s3.version>5.0.0</n5-aws-s3.version>
+        <n5-blosc.version>2.0.0</n5-blosc.version>
+        <n5-google-cloud.version>6.0.0</n5-google-cloud.version>
+        <n5-hdf5.version>3.0.0</n5-hdf5.version>
+        <n5-imglib2.version>8.0.0</n5-imglib2.version>
+        <n5-zarr.version>2.0.1</n5-zarr.version>
+        <n5-zstandard.version>2.0.0</n5-zstandard.version>
+
+
+        <imglib2-label-multisets.version>0.15.2</imglib2-label-multisets.version>
+        <label-utilities-spark.version>1.2.0-SNAPSHOT</label-utilities-spark.version>
+        <n5-spark.version>4.1.0-SNAPSHOT</n5-spark.version>
         <spark.version>3.5.4</spark.version>
         <spark-core_2.12.version>${spark.version}</spark-core_2.12.version>
         <jackson.version>2.15.4</jackson.version>
@@ -163,6 +167,11 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-aws-s3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
+            <version>2.30.10</version>
         </dependency>
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>

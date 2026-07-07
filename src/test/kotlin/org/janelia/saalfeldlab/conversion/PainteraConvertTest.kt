@@ -29,12 +29,12 @@ import kotlin.test.assertTrue
 class PainteraConvertTest {
 
 	@Test
-	fun `default zarr separator`() {
+	fun `default zarr2 separator`() {
 		val zarrPath = "${Files.createTempDirectory("paintera_convert_default_sep")}.zarr"
-		val zarr = createWriter(zarrPath)
+		val zarr = createWriter("zarr2:" + zarrPath)
 		var dataset = "dataset"
 		zarr.createDataset(dataset, dimensions, blockSize, DataType.UINT64, RawCompression())
-		val dimSep = zarr.getAttribute<String>(dataset, "dimension_separator", String::class.java)
+		val dimSep = zarr.getAttribute(dataset, "dimension_separator", String::class.java)
 		assertEquals("/", dimSep)
 	}
 
@@ -44,7 +44,6 @@ class PainteraConvertTest {
 	fun testWinnerTakesAll(extension: String) {
 		val scalarLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}$extension"
 		val scalarLabelsN5: N5Writer = createWriter(scalarLabelsPath)
-		scalarLabelsN5.createDataset(LABEL_SOURCE_DATASET, dimensions, blockSize, DataType.UINT64, RawCompression())
 		N5Utils.save(LABELS, scalarLabelsN5, LABEL_SOURCE_DATASET, blockSize, RawCompression())
 
 		val painteraLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}.n5"
@@ -115,7 +114,6 @@ class PainteraConvertTest {
 
 		val scalarLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}$extension"
 		val scalarLabelsN5: N5Writer = createWriter(scalarLabelsPath)
-		scalarLabelsN5.createDataset(LABEL_SOURCE_DATASET, dimensions, blockSize, DataType.UINT64, RawCompression())
 		N5Utils.save(LABELS, scalarLabelsN5, LABEL_SOURCE_DATASET, blockSize, RawCompression())
 
 		val painteraLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}.n5"

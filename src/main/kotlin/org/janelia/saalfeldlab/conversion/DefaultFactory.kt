@@ -1,20 +1,29 @@
 package org.janelia.saalfeldlab.conversion
 
-import com.amazonaws.ClientConfiguration
 import com.google.gson.GsonBuilder
 import org.janelia.saalfeldlab.n5.universe.N5Factory
+import org.janelia.saalfeldlab.n5.universe.N5FactoryWithCache
+import software.amazon.awssdk.http.apache.ApacheHttpClient
+import java.time.Duration
 
 private fun defaultGsonBuilder(): GsonBuilder = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
-internal fun defaultN5Factory(): N5Factory = N5Factory().apply {
-	zarrDimensionSeparator("/")
-	val config = ClientConfiguration().apply {
-		connectionTimeout = 50000
-		socketTimeout = 50000
-		maxConnections = 500
-		maxErrorRetry = 10
+
+internal fun defaultN5Factory(): N5Factory = N5FactoryWithCache().apply {
+	options { opts ->
+		opts.zarr2 { it.dimensionSeparator("/") }
+		opts.gsonBuilder(defaultGsonBuilder())
 	}
-	s3ClientConfiguration(config)
-	gsonBuilder(defaultGsonBuilder())
+	s3Configuration { builder ->
+		builder.httpClientBuilder(
+			ApacheHttpClient.builder()
+				.connectionTimeout(Duration.ofMillis(50000))
+				.socketTimeout(Duration.ofMillis(50000))
+				.maxConnections(500)
+		)
+		builder.overrideConfiguration { override ->
+			override.retryStrategy { retry -> retry.maxAttempts(11) }
+		}
+	}
 }
 
 private val N5_FACTORY = defaultN5Factory()

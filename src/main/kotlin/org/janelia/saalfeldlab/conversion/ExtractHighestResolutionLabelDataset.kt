@@ -24,6 +24,7 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GzipCompression
+import org.janelia.saalfeldlab.n5.LongArrayDataBlock
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -225,7 +226,8 @@ object ExtractHighestResolutionLabelDataset {
 				)
 
 				val converted = Converters.convert(
-					block, getAppropriateConverter(TLongLongHashMap(keys, values)),
+					block,
+					getAppropriateConverter(TLongLongHashMap(keys, values)),
 					outputTypeSupplier.get()
 				)
 
@@ -237,7 +239,14 @@ object ExtractHighestResolutionLabelDataset {
 
 				val writer = Singleton.get(writerCacheKey, ThrowingSupplier { n5LocalOut })
 
-				N5Utils.saveBlock(converted, writer, datasetOut, attributes, blockWithPosition._2())
+				val blockDims = Intervals.dimensionsAsIntArray(converted)
+				val data = LongArray(Intervals.numElements(converted).toInt())
+				val cursor = Views.flatIterable(converted).cursor()
+				var i = 0
+				cursor.forEach {
+					data[i++] = it.integerLong
+				}
+				writer.writeBlock(datasetOut, attributes, LongArrayDataBlock(blockDims, blockWithPosition._2(), data))
 			}
 	}
 
