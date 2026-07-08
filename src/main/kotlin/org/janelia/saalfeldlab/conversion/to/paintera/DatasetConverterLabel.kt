@@ -1,10 +1,7 @@
 package org.janelia.saalfeldlab.conversion.to.paintera
 
 import com.google.gson.JsonElement
-import net.imglib2.type.NativeType
-import net.imglib2.type.label.LabelMultisetType
-import net.imglib2.type.numeric.IntegerType
-import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.integer.UnsignedLongType
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
 import org.janelia.saalfeldlab.conversion.createReader
@@ -48,6 +45,11 @@ class DatasetConverterLabel(info: DatasetInfo) : DatasetConverter(info) {
 
 }
 
+private val SUPPORTED_LABEL_TYPES = setOf(
+	DataType.INT8, DataType.UINT8, DataType.INT16, DataType.UINT16,
+	DataType.INT32, DataType.UINT32, DataType.INT64, DataType.UINT64,
+)
+
 @Throws(IOException::class)
 private fun handleLabelDatasetInferType(
 	sc: JavaSparkContext,
@@ -61,226 +63,25 @@ private fun handleLabelDatasetInferType(
 	labelBlockLookupN5BlockSize: Int?,
 	overwriteExisiting: Boolean = false
 ) {
-	if (winnerTakesAll)
-		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
-			DataType.INT8 -> handleLabelDataset<ByteType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT8 -> handleLabelDataset<UnsignedByteType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT16 -> handleLabelDataset<ShortType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT16 -> handleLabelDataset<UnsignedShortType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT32 -> handleLabelDataset<IntType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT32 -> handleLabelDataset<UnsignedIntType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT64 -> handleLabelDataset<LongType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT64 -> handleLabelDataset<UnsignedLongType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			else -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
-		}
-	else
-		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
-			DataType.INT8 -> handleLabelDataset<ByteType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT8 -> handleLabelDataset<UnsignedByteType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT16 -> handleLabelDataset<ShortType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT16 -> handleLabelDataset<UnsignedShortType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT32 -> handleLabelDataset<IntType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT32 -> handleLabelDataset<UnsignedIntType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT64 -> handleLabelDataset<LongType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT64 -> handleLabelDataset<UnsignedLongType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			else -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
-		}
+	/* the dataType is only validated here; the spark converters resolve the actual type at runtime */
+	if (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType !in SUPPORTED_LABEL_TYPES)
+		throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
+	handleLabelDataset(
+		sc,
+		info,
+		blockSize,
+		scales,
+		downsamplingBlockSizes,
+		maxNumEntries,
+		reverse,
+		winnerTakesAll,
+		labelBlockLookupN5BlockSize,
+		overwriteExisiting
+	)
 }
 
 @Throws(IOException::class, InvalidDataType::class, InvalidN5Container::class, InvalidDataset::class, InputSameAsOutput::class)
-private fun <I, O> handleLabelDataset(
+private fun handleLabelDataset(
 	sc: JavaSparkContext,
 	info: DatasetInfo,
 	initialBlockSize: IntArray,
@@ -291,9 +92,7 @@ private fun <I, O> handleLabelDataset(
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
 	overwriteExisting: Boolean
-) where
-		I : IntegerType<I>, I : NativeType<I>,
-		O : IntegerType<O>, O : NativeType<O> {
+) {
 	val writer = createWriter(info.outputFormat, info.outputContainer)
 	writer.createGroup(info.outputGroup)
 
@@ -307,7 +106,8 @@ private fun <I, O> handleLabelDataset(
 	val labelBlockMappingGroupDirectory = File(labelBlockMappingGroup).absolutePath
 
 	if (winnerTakesAll) {
-		N5ConvertSpark.convert<I, O>(
+		/* input type is erased and resolved at runtime; output is uint64 for winner-takes-all */
+		N5ConvertSpark.convert<Nothing, UnsignedLongType>(
 			sc,
 			{ createReader(info.inputContainer) },
 			info.inputDataset,
@@ -323,7 +123,7 @@ private fun <I, O> handleLabelDataset(
 		for ((scaleNum, scale) in scales.withIndex()) {
 			val newScaleDataset = scaleGroup(info.outputGroup, scaleNum + 1)
 
-			N5LabelDownsamplerSpark.downsampleLabel<O>(
+			N5LabelDownsamplerSpark.downsampleLabel<UnsignedLongType>(
 				sc,
 				{ createWriter(info.outputFormat, info.outputContainer) },
 				scaleGroup(info.outputGroup, scaleNum),
@@ -351,7 +151,7 @@ private fun <I, O> handleLabelDataset(
 		}
 	} else {
 		// TODO pass compression and reverse array as parameters
-		ConvertToLabelMultisetType.convertToLabelMultisetType<I>(
+		ConvertToLabelMultisetType.convertToLabelMultisetType<Nothing>(
 			sc,
 			info.inputContainer,
 			info.inputDataset,
