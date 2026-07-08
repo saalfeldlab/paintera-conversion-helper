@@ -4,9 +4,12 @@ import com.pivovarit.function.ThrowingConsumer
 import gnu.trove.map.TLongLongMap
 import gnu.trove.map.hash.TLongLongHashMap
 import io.github.oshai.kotlinlogging.KotlinLogging
+import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
+import net.imglib2.img.array.ArrayImgs
+import net.imglib2.loops.LoopBuilder
 import net.imglib2.algorithm.util.Singleton
 import net.imglib2.algorithm.util.Singleton.ThrowingSupplier
 import net.imglib2.converter.Converter
@@ -26,6 +29,8 @@ import org.janelia.saalfeldlab.n5.LongArrayDataBlock
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression
@@ -33,6 +38,7 @@ import picocli.CommandLine
 import scala.Tuple2
 import java.io.IOException
 import java.io.Serializable
+import java.nio.ByteBuffer
 import java.util.Optional
 import java.util.function.Supplier
 import java.util.stream.Collectors
@@ -57,9 +63,10 @@ object ExtractHighestResolutionLabelDataset {
 		datasetOut: String?,
 		blockSizeOut: IntArray?,
 		considerFragmentSegmentAssignment: Boolean,
-		assignment: TLongLongMap
+		assignment: TLongLongMap,
+		chunksPerShard: IntArray? = null
 	) {
-		extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment)
+		extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment, chunksPerShard)
 	}
 
 	@JvmStatic
@@ -72,7 +79,8 @@ object ExtractHighestResolutionLabelDataset {
 		datasetOut: String?,
 		blockSizeOut: IntArray?,
 		considerFragmentSegmentAssignment: Boolean,
-		assignment: TLongLongMap
+		assignment: TLongLongMap,
+		chunksPerShard: IntArray? = null
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>? {
 		extract<IN, UnsignedLongType>(
 			sc,
@@ -86,7 +94,8 @@ object ExtractHighestResolutionLabelDataset {
 			},
 			emptyMap(),
 			considerFragmentSegmentAssignment,
-			assignment
+			assignment,
+			chunksPerShard
 		)
 	}
 
@@ -101,7 +110,8 @@ object ExtractHighestResolutionLabelDataset {
 		outputTypeSupplier: Supplier<OUT>,
 		additionalAttributes: Map<String?, Any>,
 		considerFragmentSegmentAssignment: Boolean,
-		assignment: TLongLongMap
+		assignment: TLongLongMap,
+		chunksPerShard: IntArray? = null
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>?, OUT : NativeType<OUT>?, OUT : IntegerType<OUT>? {
 		val n5InLocal = n5in.get()
 		if (!n5InLocal.exists(datasetIn)) {
@@ -121,7 +131,7 @@ object ExtractHighestResolutionLabelDataset {
 					}
 					extract(
 						sc, n5in, n5out, "$datasetIn/data", datasetOut, blockSizeOut, outputTypeSupplier, updatedAdditionalEntries,
-						considerFragmentSegmentAssignment, assignment
+						considerFragmentSegmentAssignment, assignment, chunksPerShard
 					)
 					return
 				} catch (e: NoValidDatasetException) {
@@ -131,7 +141,7 @@ object ExtractHighestResolutionLabelDataset {
 				try {
 					extract(
 						sc, n5in, n5out, "$datasetIn/s0", datasetOut, blockSizeOut, outputTypeSupplier, additionalAttributes,
-						considerFragmentSegmentAssignment, assignment
+						considerFragmentSegmentAssignment, assignment, chunksPerShard
 					)
 					return
 				} catch (e: NoValidDatasetException) {
@@ -145,11 +155,17 @@ object ExtractHighestResolutionLabelDataset {
 		val attributesIn = n5InLocal.getDatasetAttributes(datasetIn)
 		val dimensions = attributesIn.dimensions.clone()
 		val blockSize = blockSizeOut ?: attributesIn.blockSize
-		val dataType = if (outputIsLabelMultiset
-		) DataType.UINT8
-		else N5Utils.dataType(outputTypeSupplier.get())
+		val dataType = DataType.UINT8.takeIf { outputIsLabelMultiset } ?: N5Utils.dataType(outputTypeSupplier.get())
 
-		n5out.get().createDataset(datasetOut, dimensions, blockSize, dataType, GzipCompression())
+		val outWriter = n5out.get()
+		if (chunksPerShard != null && outWriter is ZarrV3KeyValueWriter) {
+			/* shard size = chunks-per-shard * block size ( when sharded the block size parameter is used for chunk size; maybe should rename)  */
+			val shardSize = IntArray(blockSize.size) { chunksPerShard[it] * blockSize[it] }
+			outWriter.createDataset(datasetOut, ZarrV3DatasetAttributes(dimensions, shardSize, blockSize, dataType, ZstandardCompression()))
+		} else
+			outWriter.createDataset(datasetOut, dimensions, blockSize, dataType, ZstandardCompression())
+		/* the unit of parallel write is always the DatasetAttributes#blockSize. when sharded this is the shard size */
+		val outputBlockSize = outWriter.getDatasetAttributes(datasetOut).blockSize
 		val keys = assignment.keys()
 		val values = assignment.values()
 
@@ -191,7 +207,7 @@ object ExtractHighestResolutionLabelDataset {
 		if (!(DataType.UINT8 == attributesIn.dataType && isLabelMultiset || isValidType(attributesIn.dataType) && !isLabelMultiset)) throw InvalidTypeException(attributesIn.dataType, isLabelMultiset)
 
 		val blocks: List<Tuple2<Tuple2<LongArray, LongArray>, LongArray>> = Grids
-			.collectAllContainedIntervalsWithGridPositions(dimensions, blockSize)
+			.collectAllContainedIntervalsWithGridPositions(dimensions, outputBlockSize)
 			.stream()
 			.map { p: Pair<Interval, LongArray> -> Tuple2(Tuple2(Intervals.minAsLongArray(p.a), Intervals.maxAsLongArray(p.a)), p.b) }
 			.collect(Collectors.toList())
@@ -217,13 +233,6 @@ object ExtractHighestResolutionLabelDataset {
 					blockWithPosition._1()._2()
 				)
 
-				val attributes = DatasetAttributes(
-					dimensions,
-					blockSize,
-					N5Utils.dataType(outputTypeSupplier.get()),
-					GzipCompression()
-				)
-
 				val converted = Converters.convert(
 					block,
 					getAppropriateConverter(TLongLongHashMap(keys, values)),
@@ -238,14 +247,50 @@ object ExtractHighestResolutionLabelDataset {
 
 				val writer = Singleton.get(writerCacheKey, ThrowingSupplier { n5LocalOut })
 
-				val blockDims = Intervals.dimensionsAsIntArray(converted)
-				val data = LongArray(Intervals.numElements(converted).toInt())
-				val cursor = Views.flatIterable(converted).cursor()
-				var i = 0
-				cursor.forEach {
-					data[i++] = it.integerLong
+				/* read the created dataset's attributes so sharded writes route into shards */
+				val attributes = writer.getDatasetAttributes(datasetOut)
+
+				val fillValue = (attributes as? ZarrV3DatasetAttributes)?.run { ByteBuffer.wrap(fillBytes).long } ?: 0L
+				var blockIsEmpty = true
+				if (attributes.isSharded) {
+					/* materialize a full shard-sized block (0-padded past the edge) and write it at the shard grid position.*/
+					val shardBlockSize = attributes.blockSize
+					val data = LongArray(shardBlockSize.fold(1) { acc, s -> acc * s })
+					val shardImg = ArrayImgs.unsignedLongs(data, *shardBlockSize.map { it.toLong() }.toLongArray())
+					LoopBuilder.setImages(
+						Views.zeroMin(converted),
+						Views.interval(shardImg, FinalInterval(*Intervals.dimensionsAsLongArray(converted)))
+					).forEachPixel { source, target ->
+						val value = source!!.integerLong
+						target.setInteger(value)
+						/* set blockIsEmpty = false first value that is not the fill value. */
+						if (blockIsEmpty && value != fillValue)
+							blockIsEmpty = false
+					}
+					if (!blockIsEmpty)
+						writer.writeBlock(
+							datasetOut,
+							attributes,
+							LongArrayDataBlock(shardBlockSize, blockWithPosition._2(), data)
+						)
+				} else {
+					val blockDims = Intervals.dimensionsAsIntArray(converted)
+					val data = LongArray(Intervals.numElements(converted).toInt())
+					val cursor = Views.flatIterable(converted).cursor()
+					var i = 0
+					cursor.forEach {
+						val value = it.integerLong
+						data[i++] = value
+						if (blockIsEmpty && value != fillValue)
+							blockIsEmpty = false
+					}
+					if (!blockIsEmpty)
+						writer.writeBlock(
+							datasetOut,
+							attributes,
+							LongArrayDataBlock(blockDims, blockWithPosition._2(), data)
+						)
 				}
-				writer.writeBlock(datasetOut, attributes, LongArrayDataBlock(blockDims, blockWithPosition._2(), data))
 			}
 	}
 

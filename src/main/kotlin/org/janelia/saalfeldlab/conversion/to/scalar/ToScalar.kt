@@ -62,6 +62,14 @@ class ToScalar : Callable<Int> {
 	private lateinit var blockSize: IntArray
 
 	@CommandLine.Option(
+		names = ["--chunks-per-shard"],
+		required = false,
+		split = ",",
+		description = ["Number of chunks per shard, per axis (one value or three). Only valid for OUTPUT_FORMAT=ZARR3"]
+	)
+	private var chunksPerShard: IntArray? = null
+
+	@CommandLine.Option(
 		names = ["--consider-fragment-segment-assignment"],
 		required = false,
 		defaultValue = "false",
@@ -72,7 +80,7 @@ class ToScalar : Callable<Int> {
 	@CommandLine.Option(
 		names = ["--spark-master"],
 		required = false,
-		description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. loca[24] )."]
+		description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. local[24] )."]
 	)
 	var sparkMaster: String? = null
 
@@ -116,6 +124,14 @@ class ToScalar : Callable<Int> {
 				}
 			}
 
+			val chunksPerShard = this.chunksPerShard?.let { cps ->
+				when (cps.size) {
+					1 -> IntArray(3) { cps[0] }
+					3 -> cps.clone()
+					else -> throw InvalidBlockSize(cps, "chunks-per-shard has to be specified with one or three entries but got ${cps.joinToString(", ", "[", "]")}")
+				}
+			}
+
 			extract(
 				inputContainer,
 				outputFormat,
@@ -123,6 +139,7 @@ class ToScalar : Callable<Int> {
 				inputDataset,
 				outputDataset,
 				blockSize,
+				chunksPerShard,
 				considerFragmentSegmentAssignment,
 				assignment,
 				sparkMaster
@@ -145,6 +162,7 @@ class ToScalar : Callable<Int> {
 			inputDataset: String,
 			outputDataset: String,
 			blockSize: IntArray,
+			chunksPerShard: IntArray?,
 			considerFragmentSegmentAssignment: Boolean,
 			assignment: TLongLongMap,
 			sparkMaster: String?
@@ -161,7 +179,8 @@ class ToScalar : Callable<Int> {
 					outputDataset,
 					blockSize,
 					considerFragmentSegmentAssignment,
-					assignment
+					assignment,
+					chunksPerShard
 				)
 			}
 
