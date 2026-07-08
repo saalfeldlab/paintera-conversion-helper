@@ -19,9 +19,9 @@ import org.janelia.saalfeldlab.label.spark.uniquelabels.ExtractUniqueLabelsPerBl
 import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler
 import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import java.io.File
 import java.io.IOException
 import java.nio.file.Paths
@@ -314,7 +314,7 @@ private fun <I, O> handleLabelDataset(
 			{ createWriter(info.outputFormat, info.outputContainer) },
 			originalResolutionOutputDataset,
 			Optional.of(initialBlockSize),
-			Optional.of(GzipCompression()), // TODO pass compression as parameter
+			Optional.of(ZstandardCompression()), // TODO pass compression as parameter
 			Optional.empty(),
 			Optional.empty(),
 			overwriteExisting
@@ -358,7 +358,7 @@ private fun <I, O> handleLabelDataset(
 			initialBlockSize,
 			info.outputContainer.toString(),
 			originalResolutionOutputDataset,
-			GzipCompression(),
+			ZstandardCompression(),
 			reverse
 		)
 

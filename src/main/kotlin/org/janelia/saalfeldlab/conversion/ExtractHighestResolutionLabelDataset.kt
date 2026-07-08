@@ -22,14 +22,13 @@ import org.apache.http.client.utils.URIBuilder
 import org.apache.http.message.BasicNameValuePair
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import picocli.CommandLine
 import scala.Tuple2
 import java.io.IOException

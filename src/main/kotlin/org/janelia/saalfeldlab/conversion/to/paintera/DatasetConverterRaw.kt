@@ -10,9 +10,9 @@ import org.janelia.saalfeldlab.conversion.DatasetInfo
 import org.janelia.saalfeldlab.conversion.createReader
 import org.janelia.saalfeldlab.conversion.createWriter
 import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5DownsamplerSpark
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import java.io.IOException
 import java.nio.file.Paths
 import java.util.Optional
@@ -89,7 +89,7 @@ fun <T> handleRawDataset(
 			{ createWriter(info.outputFormat, info.outputContainer) },
 			outputDataset,
 			Optional.of(blockSize),
-			Optional.of(GzipCompression()), // TODO pass compression as parameter
+			Optional.of(ZstandardCompression()), // TODO pass compression as parameter
 			Optional.empty(),
 			Optional.empty(),
 			overwriteExisiting

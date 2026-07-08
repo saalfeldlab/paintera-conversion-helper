@@ -17,13 +17,13 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset.LookupPair
 import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset.extract
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import org.janelia.saalfeldlab.n5.universe.N5Factory
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -84,7 +84,7 @@ class ExtractHighestResolutionLabelDatasetTest {
 				originalContainer,
 				highestResolution,
 				inputBlockSize,
-				GzipCompression()
+				ZstandardCompression()
 			)
 
 			originalContainer.setAttribute(painteraDataset, "painteraData", "")
