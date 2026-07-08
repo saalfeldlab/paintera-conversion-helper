@@ -70,6 +70,14 @@ class ToScalar : Callable<Int> {
 	private var chunksPerShard: IntArray? = null
 
 	@CommandLine.Option(
+		names = ["--xyz-unit"],
+		required = true,
+		split = ",",
+		description = ["Unit for the x, y, z (1 value, or 1 value per axis)."],
+	)
+	private lateinit var xyzUnit: Array<String>
+
+	@CommandLine.Option(
 		names = ["--consider-fragment-segment-assignment"],
 		required = false,
 		defaultValue = "false",
@@ -132,6 +140,14 @@ class ToScalar : Callable<Int> {
 				}
 			}
 
+			val xyzUnit = this.xyzUnit.let { units ->
+				when (units.size) {
+					1 -> Array(3) { units[0] }
+					3 -> units.clone()
+					else -> throw InvalidAxisUnit(units, "xyz-unit has to be specified with one or three entries but got ${units.joinToString(", ", "[", "]")}")
+				}
+			}
+
 			extract(
 				inputContainer,
 				outputFormat,
@@ -140,6 +156,7 @@ class ToScalar : Callable<Int> {
 				outputDataset,
 				blockSize,
 				chunksPerShard,
+				xyzUnit,
 				considerFragmentSegmentAssignment,
 				assignment,
 				sparkMaster
@@ -163,6 +180,7 @@ class ToScalar : Callable<Int> {
 			outputDataset: String,
 			blockSize: IntArray,
 			chunksPerShard: IntArray?,
+			xyzUnit: Array<String>,
 			considerFragmentSegmentAssignment: Boolean,
 			assignment: TLongLongMap,
 			sparkMaster: String?
@@ -180,6 +198,7 @@ class ToScalar : Callable<Int> {
 					blockSize,
 					considerFragmentSegmentAssignment,
 					assignment,
+					xyzUnit,
 					chunksPerShard
 				)
 			}

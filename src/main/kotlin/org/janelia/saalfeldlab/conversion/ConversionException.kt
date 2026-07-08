@@ -40,6 +40,8 @@ class OutputDatasetExists(container: String, dataset: String) : InvalidOutputDat
 
 class InvalidBlockSize(val blockSize: IntArray, message: String) : ConversionException(exitCodes.INVALID_BLOCK_SIZE, message)
 
+class InvalidAxisUnit(val units: Array<String>, message: String) : ConversionException(exitCodes.INVALID_AXIS_UNIT, message)
+
 class NoSparkMasterSpecified(sparkMasterFlag: String? = null) : ConversionException(
 	exitCodes.NO_SPARK_MASTER,
 	"No spark master specified. Use the `-Dspark.master=<master>' system property${sparkMasterFlag?.let { " or the `$sparkMasterFlag' option" } ?: ""}.")
@@ -57,5 +59,7 @@ object exitCodes {
 	const val INVALID_BLOCK_SIZE: Int = 5
 
 	const val NO_SPARK_MASTER: Int = 6
+
+	const val INVALID_AXIS_UNIT: Int = 7
 
 }

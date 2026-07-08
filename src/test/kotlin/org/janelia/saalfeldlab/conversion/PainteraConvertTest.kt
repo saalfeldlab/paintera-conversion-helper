@@ -8,12 +8,15 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import org.janelia.saalfeldlab.conversion.PainteraConvert.Companion.main
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
 import org.janelia.saalfeldlab.n5.DataType
+import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import picocli.CommandLine
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.FieldSource
 import java.nio.file.Files
@@ -26,220 +29,344 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 
+
+data class InputFormat(val label: String, val extension: String, val writePrefix: String, val sharded: Boolean = false) {
+    override fun toString() = label
+}
+
 class PainteraConvertTest {
 
-	@Test
-	fun `default zarr2 separator`() {
-		val zarrPath = "${Files.createTempDirectory("paintera_convert_default_sep")}.zarr"
-		val zarr = createWriter("zarr2:" + zarrPath)
-		var dataset = "dataset"
-		zarr.createDataset(dataset, dimensions, blockSize, DataType.UINT64, RawCompression())
-		val dimSep = zarr.getAttribute(dataset, "dimension_separator", String::class.java)
-		assertEquals("/", dimSep)
-	}
+    @Test
+    fun `default zarr2 separator`() {
+        val zarrPath = "${Files.createTempDirectory("paintera_convert_default_sep")}.zarr"
+        val zarr = createWriter("zarr2:" + zarrPath)
+        var dataset = "dataset"
+        zarr.createDataset(dataset, dimensions, blockSize, DataType.UINT64, RawCompression())
+        val dimSep = zarr.getAttribute(dataset, "dimension_separator", String::class.java)
+        assertEquals("/", dimSep)
+    }
+
+    /* create the scalar-label input in the requested format.
+     * sharded zarr3 uses a shard grid of `shardSize` with inner chunks of `blockSize`.  */
+    private fun writeScalarInput(format: InputFormat): String {
+        val path = "${Files.createTempDirectory("command-line-converter-test")}${format.extension}"
+        val writer = createWriter(format.writePrefix + path)
+        val attributes = if (format.sharded)
+            ZarrV3DatasetAttributes.Builder(LABELS.dimensionsAsLongArray(), DataType.UINT64)
+                .blockSize(shardSize)
+                .chunkSize(blockSize)
+                .build()
+        else
+            DatasetAttributes.Builder(LABELS.dimensionsAsLongArray(), DataType.UINT64)
+                .blockSize(blockSize)
+                .build()
+        writer.createDataset(LABEL_SOURCE_DATASET, attributes)
+        N5Utils.saveBlock(LABELS, writer, LABEL_SOURCE_DATASET, attributes, longArrayOf(0, 0, 0))
+        return path
+    }
+
+    @ParameterizedTest
+    @FieldSource("conversionFormats")
+    fun testWinnerTakesAll(format: InputFormat) {
+        val scalarLabelsPath = writeScalarInput(format)
+
+        val painteraLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}.n5"
+        val painteraLabelsN5: N5Writer = createWriter(painteraLabelsPath)
 
 
-	@ParameterizedTest
-	@FieldSource("extensionParams")
-	fun testWinnerTakesAll(extension: String) {
-		val scalarLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}$extension"
-		val scalarLabelsN5: N5Writer = createWriter(scalarLabelsPath)
-		N5Utils.save(LABELS, scalarLabelsN5, LABEL_SOURCE_DATASET, blockSize, RawCompression())
+        val labelTargetDataset = "volumes/labels-winner-takes-all"
+        // TODO set spark master from outside, e.g. CI or in pom.xml
+        System.setProperty("spark.master", "local[1]")
+        main(
+            arrayOf(
+                "to-paintera",
+                "--container=$scalarLabelsPath",
+                "--output-container=$painteraLabelsPath",
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=$labelTargetDataset",
+                "--scale", "2",
+                "--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2]),
+                "--winner-takes-all-downsampling"
+            )
+        )
 
-		val painteraLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}.n5"
-		val painteraLabelsN5: N5Writer = createWriter(painteraLabelsPath)
+        assertTrue(painteraLabelsN5.exists(labelTargetDataset))
+        assertTrue(painteraLabelsN5.exists("$labelTargetDataset/data"))
+        assertTrue(painteraLabelsN5.exists("$labelTargetDataset/unique-labels"))
+        assertTrue(painteraLabelsN5.exists("$labelTargetDataset/label-to-block-mapping"))
 
-
-		val labelTargetDataset = "volumes/labels-winner-takes-all"
-		// TODO set spark master from outside, e.g. CI or in pom.xml
-		System.setProperty("spark.master", "local[1]")
-		main(
-			arrayOf(
-				"to-paintera",
-				"--container=$scalarLabelsPath",
-				"--output-container=$painteraLabelsPath",
-				"-d", LABEL_SOURCE_DATASET,
-				"--type=label",
-				"--target-dataset=$labelTargetDataset",
-				"--scale", "2",
-				"--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2]),
-				"--winner-takes-all-downsampling"
-			)
-		)
-
-		assertTrue(painteraLabelsN5.exists(labelTargetDataset))
-		assertTrue(painteraLabelsN5.exists("$labelTargetDataset/data"))
-		assertTrue(painteraLabelsN5.exists("$labelTargetDataset/unique-labels"))
-		assertTrue(painteraLabelsN5.exists("$labelTargetDataset/label-to-block-mapping"))
-
-		assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s0"))
-		assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s1"))
-		assertFalse(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s2"))
+        assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s0"))
+        assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s1"))
+        assertFalse(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s2"))
 
 
-		assertEquals(5, painteraLabelsN5.getAttribute(labelTargetDataset, "maxId", Long::class.javaPrimitiveType) as Long)
+        assertEquals(5, painteraLabelsN5.getAttribute(labelTargetDataset, "maxId", Long::class.javaPrimitiveType) as Long)
 
-		val attrsS0 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s0")
-		val attrsS1 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s1")
-		assertEquals(DataType.UINT64, attrsS0.dataType)
-		assertEquals(DataType.UINT64, attrsS1.dataType)
-		assertArrayEquals(blockSize, attrsS0.blockSize)
-		assertArrayEquals(blockSize, attrsS1.blockSize)
-		assertArrayEquals(dimensions, attrsS0.dimensions)
-		assertArrayEquals(Arrays.stream(dimensions).map { dimension: Long -> dimension / 2 }.toArray(), attrsS1.dimensions)
+        val attrsS0 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s0")
+        val attrsS1 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s1")
+        assertEquals(DataType.UINT64, attrsS0.dataType)
+        assertEquals(DataType.UINT64, attrsS1.dataType)
+        assertArrayEquals(blockSize, attrsS0.blockSize)
+        assertArrayEquals(blockSize, attrsS1.blockSize)
+        assertArrayEquals(dimensions, attrsS0.dimensions)
+        assertArrayEquals(Arrays.stream(dimensions).map { dimension: Long -> dimension / 2 }.toArray(), attrsS1.dimensions)
 
-		LoopBuilder
-			.setImages(LABELS, N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$labelTargetDataset/data/s0"))
-			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
+        LoopBuilder
+            .setImages(LABELS, N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$labelTargetDataset/data/s0"))
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
 
-		val s1: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
-			longArrayOf(
-				5, 4,
-				5, 4,
+        val s1: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
+            longArrayOf(
+                5, 4,
+                5, 4,
 
-				4, 4,
-				5, 4
-			),
-			*attrsS1.dimensions
-		)
+                4, 4,
+                5, 4
+            ),
+            *attrsS1.dimensions
+        )
 
-		LoopBuilder
-			.setImages(s1, N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$labelTargetDataset/data/s1"))
-			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
-	}
+        LoopBuilder
+            .setImages(s1, N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$labelTargetDataset/data/s1"))
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
+    }
 
-	@ParameterizedTest
-	@FieldSource("extensionParams")
-	fun testLabelMultisets(extension: String) {
+    @ParameterizedTest
+    @FieldSource("conversionFormats")
+    fun testLabelMultisets(format: InputFormat) {
 
-		val scalarLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}$extension"
-		val scalarLabelsN5: N5Writer = createWriter(scalarLabelsPath)
-		N5Utils.save(LABELS, scalarLabelsN5, LABEL_SOURCE_DATASET, blockSize, RawCompression())
+        val scalarLabelsPath = writeScalarInput(format)
 
-		val painteraLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}.n5"
-		val painteraLabelsN5: N5Writer = createWriter(painteraLabelsPath)
+        val painteraLabelsPath = "${Files.createTempDirectory("command-line-converter-test")}.n5"
+        val painteraLabelsN5: N5Writer = createWriter(painteraLabelsPath)
 
-		val labelTargetDataset = "volumes/labels-converted"
-		// TODO set spark master from outside, e.g. travis or in pom.xml
-		System.setProperty("spark.master", "local[1]")
-		main(
-			arrayOf(
-				"to-paintera",
-				"--container=$scalarLabelsPath",
-				"--output-container=$painteraLabelsPath",
-				"-d", LABEL_SOURCE_DATASET,
-				"--type=label",
-				"--target-dataset=$labelTargetDataset",
-				"--scale", "2",
-				"--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2])
-			)
-		)
+        val labelTargetDataset = "volumes/labels-converted"
+        // TODO set spark master from outside, e.g. travis or in pom.xml
+        System.setProperty("spark.master", "local[1]")
+        main(
+            arrayOf(
+                "to-paintera",
+                "--container=$scalarLabelsPath",
+                "--output-container=$painteraLabelsPath",
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=$labelTargetDataset",
+                "--scale", "2",
+                "--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2])
+            )
+        )
 
-		assertTrue(painteraLabelsN5.exists(labelTargetDataset))
-		assertTrue(painteraLabelsN5.exists("$labelTargetDataset/data"))
-		assertTrue(painteraLabelsN5.exists("$labelTargetDataset/unique-labels"))
-		assertTrue(painteraLabelsN5.exists("$labelTargetDataset/label-to-block-mapping"))
+        assertTrue(painteraLabelsN5.exists(labelTargetDataset))
+        assertTrue(painteraLabelsN5.exists("$labelTargetDataset/data"))
+        assertTrue(painteraLabelsN5.exists("$labelTargetDataset/unique-labels"))
+        assertTrue(painteraLabelsN5.exists("$labelTargetDataset/label-to-block-mapping"))
 
-		assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s0"))
-		assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s1"))
-		assertFalse(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s2"))
+        assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s0"))
+        assertTrue(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s1"))
+        assertFalse(painteraLabelsN5.datasetExists("$labelTargetDataset/data/s2"))
 
-		assertEquals(5, painteraLabelsN5.getAttribute(labelTargetDataset, "maxId", Long::class.javaPrimitiveType) as Long)
+        assertEquals(5, painteraLabelsN5.getAttribute(labelTargetDataset, "maxId", Long::class.javaPrimitiveType) as Long)
 
-		val attrsS0 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s0")
-		val attrsS1 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s1")
-		assertEquals(DataType.UINT8, attrsS0.dataType)
-		assertEquals(DataType.UINT8, attrsS1.dataType)
-		assertTrue(isLabelDataType(painteraLabelsN5, "$labelTargetDataset/data/s0"))
-		assertTrue(isLabelDataType(painteraLabelsN5, "$labelTargetDataset/data/s1"))
-		assertArrayEquals(blockSize, attrsS0.blockSize)
-		assertArrayEquals(blockSize, attrsS1.blockSize)
-		assertArrayEquals(dimensions, attrsS0.dimensions)
+        val attrsS0 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s0")
+        val attrsS1 = painteraLabelsN5.getDatasetAttributes("$labelTargetDataset/data/s1")
+        assertEquals(DataType.UINT8, attrsS0.dataType)
+        assertEquals(DataType.UINT8, attrsS1.dataType)
+        assertTrue(isLabelDataType(painteraLabelsN5, "$labelTargetDataset/data/s0"))
+        assertTrue(isLabelDataType(painteraLabelsN5, "$labelTargetDataset/data/s1"))
+        assertArrayEquals(blockSize, attrsS0.blockSize)
+        assertArrayEquals(blockSize, attrsS1.blockSize)
+        assertArrayEquals(dimensions, attrsS0.dimensions)
 
-		// FIXME: Should have the same dimensions as in the winner-takes-all case? Currently it's 1px more if input size is an odd number
-		assertArrayEquals(Arrays.stream(dimensions).map { dimension: Long -> dimension / 2 + (if (dimension % 2 != 0L) 1 else 0) }.toArray(), attrsS1.dimensions)
+        // FIXME: Should have the same dimensions as in the winner-takes-all case? Currently it's 1px more if input size is an odd number
+        assertArrayEquals(Arrays.stream(dimensions).map { dimension: Long -> dimension / 2 + (if (dimension % 2 != 0L) 1 else 0) }.toArray(), attrsS1.dimensions)
 
-		LoopBuilder
-			.setImages(LABELS, N5LabelMultisets.openLabelMultiset(painteraLabelsN5, "$labelTargetDataset/data/s0"))
-			.forEachPixel(
-				BiConsumer { e: UnsignedLongType, a: LabelMultisetType -> assertTrue(a.entrySet().size == 1 && a.entrySet().iterator().next().element.id() == e.get()) }
-			)
+        LoopBuilder
+            .setImages(LABELS, N5LabelMultisets.openLabelMultiset(painteraLabelsN5, "$labelTargetDataset/data/s0"))
+            .forEachPixel(
+                BiConsumer { e: UnsignedLongType, a: LabelMultisetType -> assertTrue(a.entrySet().size == 1 && a.entrySet().iterator().next().element.id() == e.get()) }
+            )
 
-		val s1ArgMax: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
-			longArrayOf(
-				5, 4, 4,
-				5, 4, 1,
+        val s1ArgMax: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
+            longArrayOf(
+                5, 4, 4,
+                5, 4, 1,
 
-				4, 4, 4,
-				5, 4, 1
-			),
-			*attrsS1.dimensions
-		)
+                4, 4, 4,
+                5, 4, 1
+            ),
+            *attrsS1.dimensions
+        )
 
-		LoopBuilder
-			.setImages(s1ArgMax, N5LabelMultisets.openLabelMultiset(painteraLabelsN5, "$labelTargetDataset/data/s1"))
-			.forEachPixel(BiConsumer { e: UnsignedLongType, a: LabelMultisetType -> assertEquals(e.get(), a.argMax()) })
+        LoopBuilder
+            .setImages(s1ArgMax, N5LabelMultisets.openLabelMultiset(painteraLabelsN5, "$labelTargetDataset/data/s1"))
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: LabelMultisetType -> assertEquals(e.get(), a.argMax()) })
 
-		/* Now test to-scalar, and ensure we can convert back. */
-		val scalarTargetDataset = "volumes/labels-back-to-scalar"
-		main(
-			arrayOf(
-				"to-scalar",
-				"-i", painteraLabelsPath,
-				"-I", labelTargetDataset,
-				"-o", painteraLabelsPath,
-				"-O", scalarTargetDataset
-			)
-		)
+        /* Now test to-scalar, and ensure we can convert back. */
+        val scalarTargetDataset = "volumes/labels-back-to-scalar"
+        main(
+            arrayOf(
+                "to-scalar",
+                "-i", painteraLabelsPath,
+                "-I", labelTargetDataset,
+                "-o", painteraLabelsPath,
+                "-O", scalarTargetDataset,
+                "--xyz-unit", "pixel"
+            )
+        )
 
-		val toScalar = N5Utils.open<UnsignedLongType>(painteraLabelsN5, scalarTargetDataset)
-		LoopBuilder
-			.setImages(LABELS, toScalar)
-			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
-	}
+        /* to-scalar output is an OME-NGFF multiscale group; the array lives at s0 */
+        val toScalar = N5Utils.open<UnsignedLongType>(painteraLabelsN5, "$scalarTargetDataset/s0")
+        LoopBuilder
+            .setImages(LABELS, toScalar)
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
+    }
 
-	companion object {
+    /* build a sharded zarr3 scalar label dataset: shard size [3,4,4], chunk size [3,2,2]  */
+    private fun shardedZarr3Input(): String {
+        val inputPath = "${Files.createTempDirectory("sharded-input")}.zarr"
+        val inputWriter = createWriter("zarr3:$inputPath")
+        val inputAttrs = ZarrV3DatasetAttributes(dimensions, intArrayOf(3, 4, 4), intArrayOf(3, 2, 2), DataType.UINT64)
+        inputWriter.createDataset(LABEL_SOURCE_DATASET, inputAttrs)
+        N5Utils.saveBlock(LABELS, inputWriter, LABEL_SOURCE_DATASET, inputAttrs, longArrayOf(0, 0, 0))
+        return inputPath
+    }
 
-		private val extensionParams = arrayOf(".n5", ".h5", ".zarr")
+    @Test
+    fun `sharded zarr3 scalar input to paintera, configurable output block size`() {
+        val inputPath = shardedZarr3Input()
+        /* output block size differs from both the input shard [3,4,4] and inner block [3,2,2] */
+        val outBlock = intArrayOf(2, 2, 2)
+        val painteraPath = "${Files.createTempDirectory("sharded-out")}.n5"
+        val painteraN5: N5Writer = createWriter(painteraPath)
+        val target = "volumes/labels-from-sharded"
+        System.setProperty("spark.master", "local[1]")
+        main(
+            arrayOf(
+                "to-paintera",
+                "--container=$inputPath",
+                "--output-container=$painteraPath",
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=$target",
+                "--winner-takes-all-downsampling",
+                "--block-size=${outBlock[0]},${outBlock[1]},${outBlock[2]}"
+            )
+        )
 
-		private val dimensions = longArrayOf(5, 4, 4)
+        val attrsS0 = painteraN5.getDatasetAttributes("$target/data/s0")
+        assertEquals(DataType.UINT64, attrsS0.dataType)
+        /* the configurable output block size is honored regardless of the sharded input shape */
+        assertEquals(outBlock.toList(), attrsS0.blockSize.toList())
+        assertEquals(dimensions.toList(), attrsS0.dimensions.toList())
+        LoopBuilder.setImages(LABELS, N5Utils.open<UnsignedLongType>(painteraN5, "$target/data/s0"))
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
+    }
 
-		private val blockSize = intArrayOf(3, 3, 3)
+    @Test
+    fun `sharded zarr3 scalar input to paintera label multiset`() {
+        val inputPath = shardedZarr3Input()
+        val painteraPath = "${Files.createTempDirectory("sharded-ms-out")}.n5"
+        val painteraN5: N5Writer = createWriter(painteraPath)
+        val target = "volumes/labels-ms-from-sharded"
+        System.setProperty("spark.master", "local[1]")
+        main(
+            arrayOf(
+                "to-paintera",
+                "--container=$inputPath",
+                "--output-container=$painteraPath",
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=$target",
+                "--block-size=2,2,2"
+            )
+        )
 
-		private const val LABEL_SOURCE_DATASET = "volumes/labels-source"
+        val attrsS0 = painteraN5.getDatasetAttributes("$target/data/s0")
+        assertEquals(DataType.UINT8, attrsS0.dataType)
+        LoopBuilder.setImages(LABELS, N5LabelMultisets.openLabelMultiset(painteraN5, "$target/data/s0"))
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: LabelMultisetType ->
+                assertTrue(a.entrySet().size == 1 && a.entrySet().iterator().next().element.id() == e.get())
+            })
+    }
 
-		private val LABELS: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
-			longArrayOf(
-				5, 5, 5, 4, 4,
-				5, 5, 4, 4, 4,
-				5, 4, 4, 4, 4,
-				5, 4, 4, 4, 1,
+    @Test
+    fun `to-paintera only supports n5 output format`() {
+        val inputPath = "${Files.createTempDirectory("guard-in")}.n5"
+        N5Utils.save(LABELS, createWriter(inputPath), LABEL_SOURCE_DATASET, blockSize, RawCompression())
+        val commonArgs = arrayOf(
+            "to-paintera",
+            "--container=$inputPath",
+            "-d",
+            LABEL_SOURCE_DATASET,
+            "--type=label",
+            "--target-dataset=out",
+            "--winner-takes-all-downsampling",
+            "--block-size=3,3,3"
+        )
 
-				5, 5, 4, 4, 4,
-				5, 4, 4, 4, 4,
-				5, 5, 4, 4, 4,
-				5, 5, 5, 1, 1,
+        /* explicit --output-format=ZARR3 */
+        val explicit = CommandLine(PainteraConvert()).execute(
+            *commonArgs, "--output-container=${Files.createTempDirectory("guard-out")}.n5", "--output-format=ZARR3"
+        )
+        assertEquals(exitCodes.INVALID_OUTPUT_CONTAINER, explicit)
 
-				4, 4, 4, 4, 4,
-				4, 4, 4, 4, 4,
-				5, 4, 4, 4, 4,
-				5, 5, 5, 5, 1,
+        /* inferred from a .zarr output container */
+        val inferred = CommandLine(PainteraConvert()).execute(
+            *commonArgs, "--output-container=${Files.createTempDirectory("guard-out")}.zarr"
+        )
+        assertEquals(exitCodes.INVALID_OUTPUT_CONTAINER, inferred)
+    }
 
-				4, 4, 4, 4, 4,
-				4, 4, 4, 4, 4,
-				5, 4, 4, 4, 4,
-				5, 5, 5, 5, 1
-			),
-			*dimensions
-		)
+    companion object {
 
-		private fun isLabelDataType(n5Reader: N5Reader, fullSubGroupName: String): Boolean {
-			return when (n5Reader.getDatasetAttributes(fullSubGroupName).dataType) {
-				DataType.UINT8 -> Optional.ofNullable(n5Reader.getAttribute(fullSubGroupName, ConvertToLabelMultisetType.LABEL_MULTISETTYPE_KEY, Boolean::class.java)).orElse(false)
-				DataType.UINT64, DataType.UINT32, DataType.INT64, DataType.INT32 -> true // these are all label types
+        private val conversionFormats = arrayOf(
+            InputFormat("n5", ".n5", ""),
+            InputFormat("h5", ".h5", ""),
+            InputFormat("zarr2", ".zarr", "zarr2:"),
+            InputFormat("zarr3", ".zarr", "zarr3:"),
+            InputFormat("zarr3-sharded", ".zarr", "zarr3:", sharded = true)
+        )
 
-				else -> false
-			}
-		}
-	}
+        private val dimensions = longArrayOf(5, 4, 4)
+
+        private val blockSize = intArrayOf(3, 3, 3)
+        private val shardSize = intArrayOf(6, 6, 6)
+
+        private const val LABEL_SOURCE_DATASET = "volumes/labels-source"
+
+        private val LABELS: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(
+            longArrayOf(
+                5, 5, 5, 4, 4,
+                5, 5, 4, 4, 4,
+                5, 4, 4, 4, 4,
+                5, 4, 4, 4, 1,
+
+                5, 5, 4, 4, 4,
+                5, 4, 4, 4, 4,
+                5, 5, 4, 4, 4,
+                5, 5, 5, 1, 1,
+
+                4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4,
+                5, 4, 4, 4, 4,
+                5, 5, 5, 5, 1,
+
+                4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4,
+                5, 4, 4, 4, 4,
+                5, 5, 5, 5, 1
+            ),
+            *dimensions
+        )
+
+        private fun isLabelDataType(n5Reader: N5Reader, fullSubGroupName: String): Boolean {
+            return when (n5Reader.getDatasetAttributes(fullSubGroupName).dataType) {
+                DataType.UINT8 -> Optional.ofNullable(n5Reader.getAttribute(fullSubGroupName, ConvertToLabelMultisetType.LABEL_MULTISETTYPE_KEY, Boolean::class.java)).orElse(false)
+                DataType.UINT64, DataType.UINT32, DataType.INT64, DataType.INT32 -> true // these are all label types
+
+                else -> false
+            }
+        }
+    }
 }
