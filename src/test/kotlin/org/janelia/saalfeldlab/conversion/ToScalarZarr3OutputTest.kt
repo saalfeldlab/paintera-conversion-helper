@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.view.Views
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import picocli.CommandLine
@@ -162,5 +163,31 @@ class ToScalarZarr3OutputTest {
 		LoopBuilder.setImages(sparseImg, N5Utils.open<UnsignedLongType>(reader, outputDataset))
 			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
 		assertOmeNgffV05(outputPath, List(3) { outputUnit })
+	}
+
+	@Test
+	fun `to-scalar zarr3 --scale builds a sharded multiscale pyramid`() {
+		val out = runToScalar(listOf(outputUnit), "--chunks-per-shard", "2,2,2", "--scale", "2,2,2")
+		val reader = createReader(out)
+
+		val s0 = reader.getDatasetAttributes("$outputGroup/s0")
+		val s1 = reader.getDatasetAttributes("$outputGroup/s1")
+		assertTrue(s0.isSharded, "s0 is sharded")
+		assertTrue(s1.isSharded, "downsampled level is sharded")
+		assertEquals(listOf(5L, 3L, 2L), s1.dimensions.toList(), "s1 dims = s0 dims / 2")
+		assertEquals(listOf(6, 6, 6), s1.blockSize.toList(), "s1 shard = chunksPerShard * block")
+
+		/* the multiscales metadata now lists s0 and s1, with s1 scaled 2x the base */
+		val ome = JsonParser.parseString(File(out, "$outputGroup/zarr.json").readText()).asJsonObject
+			.getAsJsonObject("attributes").getAsJsonObject("ome")
+		val datasets = ome.getAsJsonArray("multiscales").single().asJsonObject.getAsJsonArray("datasets").map { it.asJsonObject }
+		assertEquals(listOf("s0", "s1"), datasets.map { it.get("path").asString })
+		val s1Scale = datasets[1].getAsJsonArray("coordinateTransformations")[0].asJsonObject.getAsJsonArray("scale").map { it.asDouble }
+		assertEquals(listOf(2.0, 2.0, 2.0), s1Scale, "s1 scale is 2x the base resolution")
+
+		/* s1 is a valid, non-empty label array */
+		var nonZero = 0
+		Views.iterable(N5Utils.open<UnsignedLongType>(reader, "$outputGroup/s1")).forEach { if (it.get() != 0L) nonZero++ }
+		assertTrue(nonZero > 0, "downsampled level has label data")
 	}
 }

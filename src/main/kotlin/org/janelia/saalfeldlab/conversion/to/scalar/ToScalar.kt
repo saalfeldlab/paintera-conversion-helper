@@ -5,6 +5,7 @@ import gnu.trove.map.hash.TLongLongHashMap
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.*
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
+import org.janelia.saalfeldlab.conversion.to.paintera.SpatialIntArray
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import picocli.CommandLine
 import java.io.IOException
@@ -68,6 +69,28 @@ class ToScalar : Callable<Int> {
 		description = ["Number of chunks per shard, per axis (one value or three). Only valid for OUTPUT_FORMAT=ZARR3"]
 	)
 	private var chunksPerShard: IntArray? = null
+
+	@CommandLine.Option(
+		names = ["--scale"],
+		arity = "1..*",
+		split = "\\s",
+		converter = [SpatialIntArray.Converter::class],
+		paramLabel = SpatialIntArray.PARAM_LABEL,
+		description = [
+			"Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
+		]
+	)
+	private var _scales: Array<SpatialIntArray>? = null
+
+	@CommandLine.Option(
+		names = ["--downsample-block-sizes"],
+		arity = "1..*",
+		split = "\\s",
+		converter = [SpatialIntArray.Converter::class],
+		paramLabel = SpatialIntArray.PARAM_LABEL,
+		description = ["Output block size per downsampled level; defaults to --block-size for every level."]
+	)
+	private var _downsampleBlockSizes: Array<SpatialIntArray>? = null
 
 	@CommandLine.Option(
 		names = ["--xyz-unit"],
@@ -148,6 +171,11 @@ class ToScalar : Callable<Int> {
 				}
 			}
 
+			val scales = _scales?.map { it.array }?.toTypedArray() ?: emptyArray()
+			val downsampleBlockSizes = _downsampleBlockSizes?.map { it.array }?.toTypedArray()
+				?.also { if (it.size != scales.size) throw InvalidBlockSize(blockSize, "--downsample-block-sizes must have one entry per --scale level (${scales.size}), but got ${it.size}") }
+				?: Array(scales.size) { blockSize }
+
 			extract(
 				inputContainer,
 				outputFormat,
@@ -157,6 +185,8 @@ class ToScalar : Callable<Int> {
 				blockSize,
 				chunksPerShard,
 				xyzUnit,
+				scales,
+				downsampleBlockSizes,
 				considerFragmentSegmentAssignment,
 				assignment,
 				sparkMaster
@@ -181,6 +211,8 @@ class ToScalar : Callable<Int> {
 			blockSize: IntArray,
 			chunksPerShard: IntArray?,
 			xyzUnit: Array<String>,
+			scales: Array<IntArray>,
+			downsampleBlockSizes: Array<IntArray>,
 			considerFragmentSegmentAssignment: Boolean,
 			assignment: TLongLongMap,
 			sparkMaster: String?
@@ -199,7 +231,9 @@ class ToScalar : Callable<Int> {
 					considerFragmentSegmentAssignment,
 					assignment,
 					xyzUnit,
-					chunksPerShard
+					chunksPerShard,
+					scales,
+					downsampleBlockSizes
 				)
 			}
 
