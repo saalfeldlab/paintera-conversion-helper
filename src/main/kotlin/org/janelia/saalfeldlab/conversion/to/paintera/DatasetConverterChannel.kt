@@ -63,6 +63,6 @@ private fun <T> handleChannelDataset(
 		reverseArrayAttributes
 	)
 
-	createWriter(datasetInfo.outputContainer).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
+	createWriter(datasetInfo.outputFormat, datasetInfo.outputContainer).setAttribute(datasetInfo.outputGroup, CHANNEL_AXIS_KEY, channelAxis)
 
 }

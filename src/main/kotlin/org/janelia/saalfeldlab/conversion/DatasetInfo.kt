@@ -6,12 +6,15 @@ import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import java.io.Serializable
+import java.net.URI
 
 data class DatasetInfo(
 	val inputContainer: String,
 	val inputDataset: String,
-	val outputContainer: String,
+	val outputContainer: URI,
+	val outputFormat: StorageFormat? = null,
 	val outputGroup: String = inputDataset
 ) : Serializable {
 
@@ -56,10 +59,10 @@ data class DatasetInfo(
 	@Throws(InvalidInputContainer::class, InvalidInputDataset::class)
 	fun ensureOutput(existOk: Boolean): Boolean {
 		/* Check if already exists */
-		val alreadyExists = runCatching { createWriter(outputContainer).exists("/") }.getOrNull() == true
+		val alreadyExists = runCatching { createWriter(outputFormat, outputContainer).exists("/") }.getOrNull() == true
 
-		if ((!existOk && alreadyExists) && !inputSameAsOutput() && createWriter(outputContainer).exists(outputGroup))
-			throw OutputDatasetExists(outputContainer, outputGroup)
+		if ((!existOk && alreadyExists) && !inputSameAsOutput() && createWriter(outputFormat,outputContainer).exists(outputGroup))
+			throw OutputDatasetExists(outputContainer.toString(), outputGroup)
 		return true
 	}
 

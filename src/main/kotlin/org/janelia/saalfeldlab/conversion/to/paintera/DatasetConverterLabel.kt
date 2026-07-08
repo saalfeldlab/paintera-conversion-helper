@@ -294,7 +294,7 @@ private fun <I, O> handleLabelDataset(
 ) where
 		I : IntegerType<I>, I : NativeType<I>,
 		O : IntegerType<O>, O : NativeType<O> {
-	val writer = createWriter(info.outputContainer)
+	val writer = createWriter(info.outputFormat, info.outputContainer)
 	writer.createGroup(info.outputGroup)
 
 	val dataGroup = "${info.outputGroup}/data"
@@ -311,7 +311,7 @@ private fun <I, O> handleLabelDataset(
 			sc,
 			{ createReader(info.inputContainer) },
 			info.inputDataset,
-			{ createWriter(info.outputContainer) },
+			{ createWriter(info.outputFormat, info.outputContainer) },
 			originalResolutionOutputDataset,
 			Optional.of(initialBlockSize),
 			Optional.of(GzipCompression()), // TODO pass compression as parameter
@@ -325,7 +325,7 @@ private fun <I, O> handleLabelDataset(
 
 			N5LabelDownsamplerSpark.downsampleLabel<O>(
 				sc,
-				{ createWriter(info.outputContainer) },
+				{ createWriter(info.outputFormat, info.outputContainer) },
 				scaleGroup(info.outputGroup, scaleNum),
 				newScaleDataset,
 				scale,
@@ -335,8 +335,8 @@ private fun <I, O> handleLabelDataset(
 
 		val maxId = ExtractUniqueLabelsPerBlock.extractUniqueLabels(
 			sc,
-			info.outputContainer,
-			info.outputContainer,
+			info.outputContainer.toString(),
+			info.outputContainer.toString(),
 			originalResolutionOutputDataset,
 			Paths.get(uniqueLabelsGroup, "s0").toString()
 		)
@@ -347,7 +347,7 @@ private fun <I, O> handleLabelDataset(
 		if (scales.isNotEmpty())
 		// TODO refactor this to be nicer
 		{
-			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer, uniqueLabelsGroup, scales, downsampleBlockSizes)
+			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer.toString(), uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	} else {
 		// TODO pass compression and reverse array as parameters
@@ -356,7 +356,7 @@ private fun <I, O> handleLabelDataset(
 			info.inputContainer,
 			info.inputDataset,
 			initialBlockSize,
-			info.outputContainer,
+			info.outputContainer.toString(),
 			originalResolutionOutputDataset,
 			GzipCompression(),
 			reverse
@@ -367,8 +367,8 @@ private fun <I, O> handleLabelDataset(
 
 		ExtractUniqueLabelsPerBlock.extractUniqueLabels(
 			sc,
-			info.outputContainer,
-			info.outputContainer,
+			info.outputContainer.toString(),
+			info.outputContainer.toString(),
 			originalResolutionOutputDataset,
 			"$uniqueLabelsGroup/s0"
 		)
@@ -376,24 +376,24 @@ private fun <I, O> handleLabelDataset(
 
 		if (scales.isNotEmpty()) {
 			// TODO pass compression as parameter
-			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, GzipCompression())
-			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer, uniqueLabelsGroup, scales, downsampleBlockSizes)
+			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer.toString(), dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, ZstandardCompression())
+			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer.toString(), uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	}
 
 	if (labelBlockLookupN5BlockSize != null) {
 		LabelToBlockMapping.createMappingWithMultiscaleCheckN5(
 			sc,
-			info.outputContainer,
+			info.outputContainer.toString(),
 			uniqueLabelsGroup,
-			info.outputContainer,
+			info.outputContainer.toString(),
 			info.outputGroup,
 			labelBlockMappingGroupBasename,
 			labelBlockLookupN5BlockSize
 		)
 
 	} else {
-		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer, uniqueLabelsGroup, labelBlockMappingGroupDirectory)
+		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer.toString(), uniqueLabelsGroup, labelBlockMappingGroupDirectory)
 	}
 	writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement::class.java)?.also { labelBlockLookup ->
 		writer.setAttribute(info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, labelBlockLookup)

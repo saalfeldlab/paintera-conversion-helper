@@ -5,8 +5,10 @@ import gnu.trove.map.hash.TLongLongHashMap
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.*
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import picocli.CommandLine
 import java.io.IOException
+import java.net.URI
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
@@ -34,7 +36,18 @@ class ToScalar : Callable<Int> {
 	private lateinit var inputDataset: String
 
 	@CommandLine.Option(names = ["--output-container", "-o"], required = true)
-	private lateinit var outputContainer: String
+	private lateinit var _outputContainer: String
+
+	@CommandLine.Option(names = ["--output-format"], required = false, defaultValue = "", paramLabel = "OUTPUT_FORMAT")
+	private var _outputFormat: String = ""
+
+	/* explicit --output-format, else the storage scheme of the container, else inferred on write */
+	private val outputFormat: StorageFormat?
+		get() = runCatching { StorageFormat.valueOf(_outputFormat) }.getOrNull()
+			?: StorageFormat.parseUri(_outputContainer).a
+
+	private val outputContainer: URI
+		get() = StorageFormat.parseUri(_outputContainer).b
 
 	@CommandLine.Option(names = ["--output-dataset", "-O"], required = false, description = ["defaults to input dataset"])
 	internal var outputDataset: String? = null
@@ -85,10 +98,10 @@ class ToScalar : Callable<Int> {
 		val outputDataset = outputDataset ?: inputDataset
 
 		return try {
-
-			if (inputContainer == outputContainer && inputDataset == outputDataset)
+			val inputUri = StorageFormat.parseUri(inputContainer).b
+			if (inputUri == outputContainer && inputDataset == outputDataset)
 				throw InvalidOutputDataset(
-					outputContainer,
+					outputContainer.toString(),
 					outputDataset,
 					"Input and output are the same datasets `$outputDataset' in the same container `$outputContainer'"
 				)
@@ -105,6 +118,7 @@ class ToScalar : Callable<Int> {
 
 			extract(
 				inputContainer,
+				outputFormat,
 				outputContainer,
 				inputDataset,
 				outputDataset,
@@ -126,7 +140,8 @@ class ToScalar : Callable<Int> {
 		@Throws(IOException::class)
 		private fun extract(
 			inputContainer: String,
-			outputContainer: String,
+			outputFormat: StorageFormat?,
+			outputContainer: URI,
 			inputDataset: String,
 			outputDataset: String,
 			blockSize: IntArray,
@@ -141,7 +156,7 @@ class ToScalar : Callable<Int> {
 				ExtractHighestResolutionLabelDataset.extractNoGenerics(
 					sc,
 					{ createReader(inputContainer) },
-					{ createWriter(outputContainer) },
+					{ createWriter(outputFormat, outputContainer) },
 					inputDataset,
 					outputDataset,
 					blockSize,

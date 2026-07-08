@@ -71,7 +71,7 @@ fun <T> handleRawDataset(
 	overwriteExisiting: Boolean = false
 ) where T : NativeType<T>, T : RealType<T> {
 
-	val writer = createWriter(info.outputContainer)
+	val writer = createWriter(info.outputFormat, info.outputContainer)
 	writer.createGroup(info.outputGroup)
 
 	val dataGroup = Paths.get(info.outputGroup, "data").toString()
@@ -86,7 +86,7 @@ fun <T> handleRawDataset(
 			sc,
 			{ createReader(info.inputContainer) },
 			info.inputDataset,
-			{ createWriter(info.outputContainer) },
+			{ createWriter(info.outputFormat, info.outputContainer) },
 			outputDataset,
 			Optional.of(blockSize),
 			Optional.of(GzipCompression()), // TODO pass compression as parameter
@@ -103,7 +103,7 @@ fun <T> handleRawDataset(
 
 		N5DownsamplerSpark.downsample<T>(
 			sc,
-			{ createWriter(info.outputContainer) },
+			{ createWriter(info.outputFormat, info.outputContainer) },
 			"$dataGroup/s$scaleNum",
 			newScaleDataset,
 			scales[scaleNum],

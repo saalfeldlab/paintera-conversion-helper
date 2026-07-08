@@ -16,7 +16,7 @@ abstract class DatasetConverter(val info: DatasetInfo) {
 
 
 		val downsamplingFactor = DoubleArray(parameters.blockSize.array.size) { 1.0 }
-		val writer = createWriter(info.outputContainer)
+		val writer = createWriter(info.outputFormat, info.outputContainer)
 		writer.setAttribute(scaleGroup(info.outputGroup, 0), DOWNSAMPLING_FACTORS, downsamplingFactor)
 
 		for ((scaleNum, scale) in parameters.scales.withIndex()) {
