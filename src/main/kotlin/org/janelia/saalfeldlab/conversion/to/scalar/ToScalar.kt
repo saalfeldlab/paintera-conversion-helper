@@ -5,6 +5,7 @@ import gnu.trove.map.hash.TLongLongHashMap
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.*
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
+import org.janelia.saalfeldlab.conversion.to.paintera.SpatialDoubleArray
 import org.janelia.saalfeldlab.conversion.to.paintera.SpatialIntArray
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import picocli.CommandLine
@@ -101,6 +102,24 @@ class ToScalar : Callable<Int> {
 	private lateinit var xyzUnit: Array<String>
 
 	@CommandLine.Option(
+		names = ["--resolution"],
+		required = false,
+		converter = [SpatialDoubleArray.Converter::class],
+		paramLabel = SpatialDoubleArray.PARAM_LABEL,
+		description = ["Physical resolution x,y,z (a single value u means u,u,u). Overrides the input's resolution attribute; needed for Paintera inputs, which store it on the data group rather than s0."]
+	)
+	private var _resolution: SpatialDoubleArray? = null
+
+	@CommandLine.Option(
+		names = ["--offset"],
+		required = false,
+		converter = [SpatialDoubleArray.Converter::class],
+		paramLabel = SpatialDoubleArray.PARAM_LABEL,
+		description = ["Physical offset x,y,z (a single value u means u,u,u). Overrides the input's offset attribute."]
+	)
+	private var _offset: SpatialDoubleArray? = null
+
+	@CommandLine.Option(
 		names = ["--consider-fragment-segment-assignment"],
 		required = false,
 		defaultValue = "false",
@@ -187,6 +206,8 @@ class ToScalar : Callable<Int> {
 				xyzUnit,
 				scales,
 				downsampleBlockSizes,
+				_resolution?.array,
+				_offset?.array,
 				considerFragmentSegmentAssignment,
 				assignment,
 				sparkMaster
@@ -213,6 +234,8 @@ class ToScalar : Callable<Int> {
 			xyzUnit: Array<String>,
 			scales: Array<IntArray>,
 			downsampleBlockSizes: Array<IntArray>,
+			resolution: DoubleArray?,
+			offset: DoubleArray?,
 			considerFragmentSegmentAssignment: Boolean,
 			assignment: TLongLongMap,
 			sparkMaster: String?
@@ -233,7 +256,9 @@ class ToScalar : Callable<Int> {
 					xyzUnit,
 					chunksPerShard,
 					scales,
-					downsampleBlockSizes
+					downsampleBlockSizes,
+					resolution,
+					offset
 				)
 			}
 

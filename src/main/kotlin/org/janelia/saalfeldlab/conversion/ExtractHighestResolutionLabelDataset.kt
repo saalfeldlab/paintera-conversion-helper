@@ -7,6 +7,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
+import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.algorithm.util.Singleton
 import net.imglib2.algorithm.util.Singleton.ThrowingSupplier
 import net.imglib2.converter.Converter
@@ -23,7 +24,6 @@ import org.apache.http.message.BasicNameValuePair
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.LongArrayDataBlock
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -35,7 +35,6 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
-import org.janelia.saalfeldlab.n5.spark.util.ShardedBlocks
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import picocli.CommandLine
@@ -71,9 +70,11 @@ object ExtractHighestResolutionLabelDataset {
 		xyzUnit: Array<String>,
 		chunksPerShard: IntArray? = null,
 		scales: Array<IntArray> = emptyArray(),
-		downsampleBlockSizes: Array<IntArray> = emptyArray()
+		downsampleBlockSizes: Array<IntArray> = emptyArray(),
+		resolutionOverride: DoubleArray? = null,
+		offsetOverride: DoubleArray? = null
 	) {
-		extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes)
+		extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes, resolutionOverride, offsetOverride)
 	}
 
 	@JvmStatic
@@ -90,7 +91,9 @@ object ExtractHighestResolutionLabelDataset {
 		xyzUnit: Array<String>,
 		chunksPerShard: IntArray? = null,
 		scales: Array<IntArray> = emptyArray(),
-		downsampleBlockSizes: Array<IntArray> = emptyArray()
+		downsampleBlockSizes: Array<IntArray> = emptyArray(),
+		resolutionOverride: DoubleArray? = null,
+		offsetOverride: DoubleArray? = null
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>? {
 		extract<IN, UnsignedLongType>(
 			sc,
@@ -108,7 +111,9 @@ object ExtractHighestResolutionLabelDataset {
 			xyzUnit,
 			chunksPerShard,
 			scales,
-			downsampleBlockSizes
+			downsampleBlockSizes,
+			resolutionOverride,
+			offsetOverride
 		)
 	}
 
@@ -127,7 +132,9 @@ object ExtractHighestResolutionLabelDataset {
 		xyzUnit: Array<String>,
 		chunksPerShard: IntArray? = null,
 		scales: Array<IntArray> = emptyArray(),
-		downsampleBlockSizes: Array<IntArray> = emptyArray()
+		downsampleBlockSizes: Array<IntArray> = emptyArray(),
+		resolutionOverride: DoubleArray? = null,
+		offsetOverride: DoubleArray? = null
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>?, OUT : NativeType<OUT>?, OUT : IntegerType<OUT>? {
 		val n5InLocal = n5in.get()
 		if (!n5InLocal.exists(datasetIn)) {
@@ -147,7 +154,7 @@ object ExtractHighestResolutionLabelDataset {
 					}
 					extract(
 						sc, n5in, n5out, "$datasetIn/data", datasetOut, blockSizeOut, outputTypeSupplier, updatedAdditionalEntries,
-						considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes
+						considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes, resolutionOverride, offsetOverride
 					)
 					return
 				} catch (e: NoValidDatasetException) {
@@ -157,7 +164,7 @@ object ExtractHighestResolutionLabelDataset {
 				try {
 					extract(
 						sc, n5in, n5out, "$datasetIn/s0", datasetOut, blockSizeOut, outputTypeSupplier, additionalAttributes,
-						considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes
+						considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes, resolutionOverride, offsetOverride
 					)
 					return
 				} catch (e: NoValidDatasetException) {
@@ -193,8 +200,8 @@ object ExtractHighestResolutionLabelDataset {
 		val keys = assignment.keys()
 		val values = assignment.values()
 
-		val resolution = n5InLocal.getAttribute(datasetIn, "resolution", DoubleArray::class.java) ?: DoubleArray(dimensions.size) { 1.0 }
-		val offset = n5InLocal.getAttribute(datasetIn, "offset", DoubleArray::class.java) ?: DoubleArray(dimensions.size) { 0.0 }
+		val resolution = resolutionOverride ?: n5InLocal.getAttribute(datasetIn, "resolution", DoubleArray::class.java) ?: DoubleArray(dimensions.size) { 1.0 }
+		val offset = offsetOverride ?: n5InLocal.getAttribute(datasetIn, "offset", DoubleArray::class.java) ?: DoubleArray(dimensions.size) { 0.0 }
 		/* resolution/offset become the OME-NGFF scale/translation transforms; one dataset per pyramid level, with the
 		 * per-level scale accumulating the relative downsampling factors */
 		val axes = arrayOf(
@@ -283,28 +290,23 @@ object ExtractHighestResolutionLabelDataset {
 				val attributes = writer.getDatasetAttributes(dataDataset)
 
 				val fillValue = (attributes as? ZarrV3DatasetAttributes)?.run { ByteBuffer.wrap(fillBytes).long } ?: 0L
-				if (attributes.isSharded) {
-					val fillType = outputTypeSupplier.get()!!.also { it.setInteger(fillValue) }
-					ShardedBlocks.saveNonEmptyShard(writer, dataDataset, attributes, blockWithPosition._2(), converted, fillType)
-				} else {
-					var blockIsEmpty = true
-					val blockDims = Intervals.dimensionsAsIntArray(converted)
-					val data = LongArray(Intervals.numElements(converted).toInt())
-					val cursor = Views.flatIterable(converted).cursor()
-					var i = 0
-					cursor.forEach {
-						val value = it.integerLong
-						data[i++] = value
-						if (blockIsEmpty && value != fillValue)
-							blockIsEmpty = false
-					}
-					if (!blockIsEmpty)
-						writer.writeBlock(
-							dataDataset,
-							attributes,
-							LongArrayDataBlock(blockDims, blockWithPosition._2(), data)
-						)
+				val fillType = outputTypeSupplier.get()!!.also { it.setInteger(fillValue) }
+				/* Converters.convert view over LabelMultisetType is not PrimitiveBlocks-compatible,
+				 * since LabelMultisetType only pretends to be a NativeType. We have to materialize
+				 * it here before saving  */
+				val materialized = ArrayImgFactory(fillType).create(*Intervals.dimensionsAsLongArray(converted))
+				val source = Views.flatIterable(converted).cursor()
+				val target = Views.flatIterable(materialized).cursor()
+
+				while (target.hasNext())
+					target.next().setInteger(source.next().integerLong)
+
+				/* saveNonEmptyBlock skips empty chunks/shard. Its gridOffset is in chunk-grid units,
+				 * but our parallel unit is the shard, so scale the grid position by chunks-per-shard. */
+				val chunkGridOffset = LongArray(dimensions.size) {
+					blockWithPosition._2()[it] * (attributes.blockSize[it] / attributes.chunkSize[it])
 				}
+				N5Utils.saveNonEmptyBlock(materialized, writer, dataDataset, attributes, chunkGridOffset, fillType)
 			}
 
 		/* build the downsampled pyramid s1..sN from s0; each level is sharded when chunksPerShard is set */

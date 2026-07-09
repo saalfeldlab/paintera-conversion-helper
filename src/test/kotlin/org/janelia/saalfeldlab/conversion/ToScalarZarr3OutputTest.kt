@@ -14,6 +14,8 @@ import java.util.function.BiConsumer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ToScalarZarr3OutputTest {
@@ -189,5 +191,62 @@ class ToScalarZarr3OutputTest {
 		var nonZero = 0
 		Views.iterable(N5Utils.open<UnsignedLongType>(reader, "$outputGroup/s1")).forEach { if (it.get() != 0L) nonZero++ }
 		assertTrue(nonZero > 0, "downsampled level has label data")
+	}
+
+	@Test
+	fun `to-scalar sharded zarr3 keeps within-shard chunk sparsity`() {
+		/* one whole shard of 2x2x2 chunks (block 3, chunks-per-shard 2 -> shard 6); chunk (1,1,1) is all fill (0)
+		 * while the other seven carry data, so the shard is written but that chunk must be omitted, not materialized */
+		val chunkDims = longArrayOf(6, 6, 6)
+		val img = ArrayImgs.unsignedLongs(LongArray((6 * 6 * 6)) { 7L }, *chunkDims)
+		val ra = img.randomAccess()
+		for (x in 3..5) for (y in 3..5) for (z in 3..5) {
+			ra.setPosition(longArrayOf(x.toLong(), y.toLong(), z.toLong()))
+			ra.get().set(0L)
+		}
+
+		val inputPath = "${Files.createTempDirectory("ts-sparsechunk-in")}.n5"
+		N5Utils.save(img, createWriter(inputPath), "labels", intArrayOf(3, 3, 3), RawCompression())
+
+		val outputPath = "${Files.createTempDirectory("ts-sparsechunk-out")}.zarr"
+		System.setProperty("spark.master", "local[1]")
+		val code = CommandLine(PainteraConvert()).execute(
+			"to-scalar",
+			"-i", inputPath,
+			"-I", "labels",
+			"-o", outputPath,
+			"-O", outputGroup,
+			"--output-format", "ZARR3",
+			"--block-size", "3,3,3",
+			"--chunks-per-shard", "2,2,2",
+			"--xyz-unit", outputUnit
+		)
+		assertEquals(PainteraConvert.EXIT_CODE_SUCCESS, code)
+
+		val reader = createReader(outputPath)
+		val attrs = reader.getDatasetAttributes(outputDataset)
+		assertTrue(attrs.isSharded)
+		/* the all-fill inner chunk is not stored in the shard; a data chunk in the same shard is */
+		assertNull(reader.readChunk<LongArray>(outputDataset, attrs, *longArrayOf(1, 1, 1)), "all-fill inner chunk should be omitted")
+		assertNotNull(reader.readChunk<LongArray>(outputDataset, attrs, *longArrayOf(0, 0, 0)), "data inner chunk should be present")
+
+		/* and it still round-trips: the omitted chunk reads back as fill 0 */
+		LoopBuilder.setImages(img, N5Utils.open<UnsignedLongType>(reader, outputDataset))
+			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
+	}
+
+	@Test
+	fun `to-scalar --resolution and --offset set the OME-NGFF transforms`() {
+		/* the input has no resolution/offset attributes, so these must come from the flags */
+		val out = runToScalar(listOf(outputUnit), "--resolution", "4,5,6", "--offset", "10,20,30")
+		val ome = JsonParser.parseString(File(out, "$outputGroup/zarr.json").readText()).asJsonObject
+			.getAsJsonObject("attributes").getAsJsonObject("ome")
+		val transforms = ome.getAsJsonArray("multiscales").single().asJsonObject
+			.getAsJsonArray("datasets").single().asJsonObject.getAsJsonArray("coordinateTransformations")
+		val scale = transforms[0].asJsonObject.getAsJsonArray("scale").map { it.asDouble }
+		val translation = transforms[1].asJsonObject.getAsJsonArray("translation").map { it.asDouble }
+		/* zarr stores axes in C-order (z,y,x): resolution x,y,z=4,5,6 -> [6,5,4]; offset 10,20,30 -> [30,20,10] */
+		assertEquals(listOf(6.0, 5.0, 4.0), scale, "s0 scale = --resolution, reversed for zarr")
+		assertEquals(listOf(30.0, 20.0, 10.0), translation, "s0 translation = --offset, reversed for zarr")
 	}
 }
