@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.conversion
 
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
@@ -7,6 +9,9 @@ import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import org.janelia.saalfeldlab.conversion.PainteraConvert.Companion.main
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
@@ -14,6 +19,7 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import picocli.CommandLine
@@ -26,6 +32,7 @@ import java.util.function.BiConsumer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 
@@ -63,6 +70,46 @@ class PainteraConvertTest {
         writer.createDataset(LABEL_SOURCE_DATASET, attributes)
         N5Utils.saveBlock(LABELS, writer, LABEL_SOURCE_DATASET, attributes, longArrayOf(0, 0, 0))
         return path
+    }
+
+    @Test
+    fun `to-paintera writes the labelBlockLookup parent attribute`() {
+        val scalarLabelsPath = writeScalarInput(InputFormat("n5", ".n5", ""))
+        val painteraLabelsPath = "${Files.createTempDirectory("labelblocklookup-attr-test")}.n5"
+        createWriter(painteraLabelsPath)
+        val group = "volumes/labels-with-lookup"
+
+        System.setProperty("spark.master", "local[1]")
+        main(
+            arrayOf(
+                "to-paintera",
+                "--container=$scalarLabelsPath",
+                "--output-container=$painteraLabelsPath",
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=$group",
+                "--block-size=" + String.format("%s,%s,%s", blockSize[0], blockSize[1], blockSize[2])
+            )
+        )
+
+        /* read through a new reader */
+        val factorNoCache = N5Factory()
+            .options { opt -> opt.cacheAttributes(false) }
+            .openReader(painteraLabelsPath)
+
+        assertArrayEquals(intArrayOf(10000), factorNoCache.getDatasetAttributes("$group/label-to-block-mapping/s0").blockSize)
+
+        /* "labelBlockLookup" attribute should be on the parent group */
+        val raw = assertNotNull(factorNoCache.getAttribute(group, "labelBlockLookup", JsonObject::class.java))
+        assertEquals(LabelBlockLookupFromN5Relative.LOOKUP_TYPE, raw.get("type").asString)
+        assertEquals("label-to-block-mapping/s%d", raw.get("scaleDatasetPattern").asString)
+
+        val lblGson = GsonBuilder()
+            .registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
+            .create()
+
+        val lbl = assertNotNull(lblGson.fromJson(raw, LabelBlockLookup::class.java))
+        assertTrue(lbl is LabelBlockLookupFromN5Relative)
     }
 
     @ParameterizedTest

@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.conversion.to.paintera
 
-import com.google.gson.JsonElement
 import net.imglib2.type.numeric.integer.UnsignedLongType
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
 import org.janelia.saalfeldlab.conversion.createReader
@@ -195,7 +195,6 @@ private fun handleLabelDataset(
 	} else {
 		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer.toString(), uniqueLabelsGroup, labelBlockMappingGroupDirectory)
 	}
-	writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement::class.java)?.also { labelBlockLookup ->
-		writer.setAttribute(info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, labelBlockLookup)
-	}
+	/* write the group-level lookup metadata */
+	writer.setAttribute(info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, LabelBlockLookupFromN5Relative("$labelBlockMappingGroupBasename/s%d"))
 }

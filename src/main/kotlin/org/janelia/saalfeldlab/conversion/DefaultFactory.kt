@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.conversion
 
 import com.google.gson.GsonBuilder
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.n5.KeyValueAccess
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
@@ -10,7 +12,10 @@ import software.amazon.awssdk.http.apache.ApacheHttpClient
 import java.net.URI
 import java.time.Duration
 
-private fun defaultGsonBuilder(): GsonBuilder = GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
+private fun defaultGsonBuilder(): GsonBuilder = GsonBuilder()
+	.setPrettyPrinting()
+	.disableHtmlEscaping()
+	.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
 
 private class SynchronizedN5FactoryWithCache : N5FactoryWithCache() {
 
