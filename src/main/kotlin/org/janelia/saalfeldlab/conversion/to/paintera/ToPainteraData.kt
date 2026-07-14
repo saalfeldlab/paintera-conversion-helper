@@ -511,6 +511,17 @@ class DatasetSpecificParameters {
 	@CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false, paramLabel = "TYPE")
 	private var _type: String? = null
 
+	@CommandLine.Option(
+		names = ["--slice-positions"],
+		required = false,
+		description = [
+			"Reduce an nD input to a 3D XYZ Paintera source. One argument per input axis in source dimension order: " +
+					"`x'/`y'/`z' indicate a spatial index, an integer determines where to slice at that axis (e.g. `z,y,x,0,10'). "
+					  ],
+		paramLabel = "SLICE_POSITIONS"
+	)
+	private var _slicePositions: String? = null
+
 	@CommandLine.Option(names = ["--dataset-max-num-entries"], hidden = true, arity = "1..*", paramLabel = "N")
 	private var _maxNumEntries: IntArray? = null
 
@@ -546,6 +557,9 @@ class DatasetSpecificParameters {
 
 	val type: String?
 		get() = _type
+
+	val slicePositions: String?
+		get() = _slicePositions
 
 	val maxNumEntries: IntArray
 		get() = _maxNumEntries?.let { fillUpTo(if (it.isEmpty()) intArrayOf(-1) else it, numScales) } ?: fillUpTo(containerParameters.maxNumEntries, numScales)

@@ -6,6 +6,8 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
 import org.janelia.saalfeldlab.conversion.createReader
 import org.janelia.saalfeldlab.conversion.createWriter
+import org.janelia.saalfeldlab.conversion.parseSlicePositions
+import org.janelia.saalfeldlab.conversion.slicedInputImgSupplier
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
 import org.janelia.saalfeldlab.label.spark.downsample.SparkDownsampler
 import org.janelia.saalfeldlab.label.spark.exception.InputSameAsOutput
@@ -36,6 +38,7 @@ class DatasetConverterLabel(info: DatasetInfo) : DatasetConverter(info) {
 			parameters.reverseArrayAttributes,
 			parameters.winnerTakesAllDownsampling,
 			parameters.labelBlockLookupN5BlockSize,
+			parameters.slicePositions,
 			overwriteExisiting
 		)
 	}
@@ -61,6 +64,7 @@ private fun handleLabelDatasetInferType(
 	reverse: Boolean,
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
+	slicePositions: String?,
 	overwriteExisiting: Boolean = false
 ) {
 	/* the dataType is only validated here; the spark converters resolve the actual type at runtime */
@@ -76,6 +80,7 @@ private fun handleLabelDatasetInferType(
 		reverse,
 		winnerTakesAll,
 		labelBlockLookupN5BlockSize,
+		slicePositions,
 		overwriteExisiting
 	)
 }
@@ -91,6 +96,7 @@ private fun handleLabelDataset(
 	reverse: Boolean,
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
+	slicePositions: String?,
 	overwriteExisting: Boolean
 ) {
 	val writer = createWriter(info.outputFormat, info.outputContainer)
@@ -151,16 +157,32 @@ private fun handleLabelDataset(
 		}
 	} else {
 		// TODO pass compression and reverse array as parameters
-		ConvertToLabelMultisetType.convertToLabelMultisetType<Nothing>(
-			sc,
-			info.inputContainer,
-			info.inputDataset,
-			initialBlockSize,
-			info.outputContainer.toString(),
-			originalResolutionOutputDataset,
-			ZstandardCompression(),
-			reverse
-		)
+		if (slicePositions != null) {
+			/* nD input: convert from a lazy, disk-cached 3D slice instead of the source path */
+			val dimensions = createReader(info.inputContainer)!!.getDatasetAttributes(info.inputDataset).dimensions
+			val spec = parseSlicePositions(slicePositions, dimensions)
+			val slicedSupplier = slicedInputImgSupplier(info.inputContainer, info.inputDataset, spec, initialBlockSize)
+			ConvertToLabelMultisetType.convertToLabelMultisetType(
+				sc,
+				slicedSupplier,
+				initialBlockSize,
+				initialBlockSize,
+				info.outputContainer.toString(),
+				originalResolutionOutputDataset,
+				ZstandardCompression()
+			)
+		} else {
+			ConvertToLabelMultisetType.convertToLabelMultisetType<Nothing>(
+				sc,
+				info.inputContainer,
+				info.inputDataset,
+				initialBlockSize,
+				info.outputContainer.toString(),
+				originalResolutionOutputDataset,
+				ZstandardCompression(),
+				reverse
+			)
+		}
 
 
 		writer.setAttribute(info.outputGroup, "maxId", writer.getAttribute(originalResolutionOutputDataset, "maxId", Long::class.java))
