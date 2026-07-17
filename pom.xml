@@ -8,7 +8,7 @@
 
     <groupId>org.janelia.saalfeldlab</groupId>
     <artifactId>paintera-conversion-helper</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.3.0-SNAPSHOT</version>
 
     <name>Paintera-Conversion-Helper</name>
     <description>Command line tool to convert datasets to and from paintera friendly formats</description>
@@ -43,10 +43,10 @@
         <kotlin.version>1.9.24</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
-        <label-utilities-spark.version>1.2.0-SNAPSHOT</label-utilities-spark.version>
-        <n5-spark.version>4.1.0-SNAPSHOT</n5-spark.version>
-        <n5-universe.version>3.1.0-SNAPSHOT</n5-universe.version>
-        <n5.version>4.0.2-SNAPSHOT</n5.version>
+        <label-utilities-spark.version>1.2.0</label-utilities-spark.version>
+        <n5-spark.version>4.1.0</n5-spark.version>
+        <n5-universe.version>3.1.0</n5-universe.version>
+        <n5.version>4.0.2</n5.version>
         <spark.version>3.5.4</spark.version>
         <spark-core_2.12.version>${spark.version}</spark-core_2.12.version>
         <jackson.version>2.15.4</jackson.version>
