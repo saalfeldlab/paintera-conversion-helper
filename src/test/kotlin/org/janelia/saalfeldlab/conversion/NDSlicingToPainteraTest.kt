@@ -43,7 +43,7 @@ class NDSlicingToPainteraTest {
 				"-d", "labels",
 				"--type=label",
 				"--target-dataset=seg",
-				"--slice-positions", "x,y,z,1", // axis0→x, axis1→y, axis2→z, channel axis fixed at 1
+				"--slice-positions", "x,y,z,1", // axis0→x, axis1→y, axis2→z, channel axis sliced at 1
 				"--dataset-resolution", "1,1,1"
 			)
 		)
@@ -53,11 +53,11 @@ class NDSlicingToPainteraTest {
 		val s0 = reader.getDatasetAttributes("seg/data/s0")
 		assertEquals(listOf(6L, 7L, 8L), s0.dimensions.toList(), "s0 is the 3D sliced shape (x,y,z)")
 
-		/* the indices are derived from s0, so they must carry the sliced shape too */
+		/* the indices are derived from s0, so they have the sliced shape too */
 		assertTrue(reader.datasetExists("seg/unique-labels/s0"), "unique-labels index exists")
 		assertEquals(listOf(6L, 7L, 8L), reader.getDatasetAttributes("seg/unique-labels/s0").dimensions.toList(), "unique-labels has sliced shape")
 
-		/* the LMT round-trips the c=1 slice voxel-for-voxel */
+		/* the LMT matches the c=1 slice voxel-for-voxel */
 		val lmt = N5LabelMultisets.openLabelMultiset(reader, "seg/data/s0")
 		val ra = lmt.randomAccess()
 		for (x in 0 until 6) for (y in 0 until 7) for (z in 0 until 8) {

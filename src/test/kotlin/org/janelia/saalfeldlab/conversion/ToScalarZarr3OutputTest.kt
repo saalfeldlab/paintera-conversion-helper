@@ -160,7 +160,7 @@ class ToScalarZarr3OutputTest {
 			.count { it.isFile && it.name != "zarr.json" }
 		assertEquals(1, shardFiles)
 
-		/* the 3 skipped shards read back as the fill value (0); the one voxel round-trips */
+		/* the 3 skipped shards read back as the fill value (0); the one voxel reads back unchanged */
 		val reader = createReader(outputPath)
 		LoopBuilder.setImages(sparseImg, N5Utils.open<UnsignedLongType>(reader, outputDataset))
 			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
@@ -196,7 +196,7 @@ class ToScalarZarr3OutputTest {
 	@Test
 	fun `to-scalar sharded zarr3 keeps within-shard chunk sparsity`() {
 		/* one whole shard of 2x2x2 chunks (block 3, chunks-per-shard 2 -> shard 6); chunk (1,1,1) is all fill (0)
-		 * while the other seven carry data, so the shard is written but that chunk must be omitted, not materialized */
+		 * while the other seven hold data, so the shard is written but that chunk must be omitted, not written out */
 		val chunkDims = longArrayOf(6, 6, 6)
 		val img = ArrayImgs.unsignedLongs(LongArray((6 * 6 * 6)) { 7L }, *chunkDims)
 		val ra = img.randomAccess()
@@ -230,7 +230,7 @@ class ToScalarZarr3OutputTest {
 		assertNull(reader.readChunk<LongArray>(outputDataset, attrs, *longArrayOf(1, 1, 1)), "all-fill inner chunk should be omitted")
 		assertNotNull(reader.readChunk<LongArray>(outputDataset, attrs, *longArrayOf(0, 0, 0)), "data inner chunk should be present")
 
-		/* and it still round-trips: the omitted chunk reads back as fill 0 */
+		/* the omitted chunk still reads back as fill 0 */
 		LoopBuilder.setImages(img, N5Utils.open<UnsignedLongType>(reader, outputDataset))
 			.forEachPixel(BiConsumer { e: UnsignedLongType, a: UnsignedLongType -> assertTrue(e.valueEquals(a)) })
 	}

@@ -174,12 +174,23 @@ class ToScalar : Callable<Int> {
 				}
 			}
 
-			val chunksPerShard = this.chunksPerShard?.let { cps ->
-				when (cps.size) {
-					1 -> IntArray(3) { cps[0] }
-					3 -> cps.clone()
-					else -> throw InvalidBlockSize(cps, "chunks-per-shard has to be specified with one or three entries but got ${cps.joinToString(", ", "[", "]")}")
+			val chunksPerShard = this.chunksPerShard?.let { chunksPerShard ->
+				val argString = chunksPerShard.joinToString(", ", "[", "]")
+				val chunks = when (chunksPerShard.size) {
+					1 -> IntArray(3) { chunksPerShard[0] }
+					3 -> chunksPerShard.clone()
+					else -> throw InvalidBlockSize(chunksPerShard, "chunks-per-shard has to be specified with one or three entries but got $argString")
 				}
+
+				val zeroChunksAnyDim = chunks.any { it < 1 }
+				if (zeroChunksAnyDim)
+					throw InvalidBlockSize(chunksPerShard, "chunks-per-shard entries have to be positive but got $argString")
+
+				val oneChunkPerShard = chunks.all { it == 1 }
+				if (oneChunkPerShard)
+					throw InvalidBlockSize(chunksPerShard, "chunks-per-shard has to be greater than 1 in at least one dimension but got $argString")
+
+				chunks
 			}
 
 			val xyzUnit = this.xyzUnit.let { units ->
