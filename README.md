@@ -4,10 +4,48 @@
 # Paintera Conversion Helper
 Script to assist conversion of n5 datasets to paintera-friendly formats, as specified [here](https://github.com/saalfeldlab/paintera/issues/61).
 
-## Installation
-Releases can be downloaded for Ubuntu and MacOS from the [Github Releases](https://github.com/saalfeldlab/paintera-conversion-helper/releases)
+## Prebuilt Releases
+Prebuilt releases can be downloaded for Ubuntu and MacOS from the [Github Releases](https://github.com/saalfeldlab/paintera-conversion-helper/releases)
 
-## Usage
+---
+## <u>Run from Source</u>
+### Compile
+To compile the conversion helper into a jar, simply run
+```
+./mvnw package
+```
+
+To run locally:
+```
+./mvnw -q compile exec:java \
+  -Dexec.args="to-paintera --container=in.zarr -d labels/s0 \
+    --output-container=out.n5 --target-dataset=labels --type=label \
+    --scale 2,2,2 2,2,2 --block-size=32,32,32"
+```
+
+### Janelia cluster
+
+Clone the repository with submodules:
+```
+git clone --recursive https://github.com/saalfeldlab/paintera-conversion-helper.git
+```
+If you have already cloned the repository, run this after cloning to fetch the submodules:
+```
+git submodule update --init --recursive
+```
+
+For submitting a job to the Janelia cluster you can use the following script:
+```
+./startup-scripts/flintstone-paintera-convert.sh  <flintstone args> -- <paintera-convert args>
+```
+Importantly:
+- the first flintstone arg before `--` is required, and MUST be the number of cluster nodes to use (e.g. `5`)
+- the classpath, main class, and additional args are provided to flintstone, so you do not need to specify them
+
+
+---
+## <u>Usage</u>
+### To Paintera
 This conversion tool currently supports any number of datasets (raw or label) with a
 single (global) block size, and will output to a single N5 group in a paintera-compatible
 format.
@@ -16,15 +54,8 @@ By default, spark will run locally with up to 24 workers. You can specify more w
 ```
 paintera-convert to-paintera [...]
 ```
+#### Example
 
-`paintera-convert` can also convert paintera label sources to scalar label datasets:
-```
-paintera-convert to-scalar [...]
-```
-`to-scalar` will extract the highest resolution scale level of a Paintera dataset as a scalar `uint64` Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added. See `to-scalar --help` for more details.
-
-
-### Usage Example
 To convert the `raw` and `neuron_ids` datasets of [sample A of the cremi challenge](https://cremi.org/data/) into Paintera format with mipmaps on Linux, assuming that you downloaded the data into `$HOME/Downloads`, run:
 ```sh
 paintera-convert to-paintera \
@@ -38,8 +69,9 @@ paintera-convert to-paintera \
       --dataset-resolution 4,4,40.0 \
     -d volumes/labels/neuron_ids
 ```
+<details>
+<summary><b>Usage Help </b></summary>
 
-### Usage Help
 ```
 $ paintera-convert to-paintera --help
 Usage: paintera-convert to-paintera [[--block-size=X,Y,Z|U] [--scale=X,Y,Z|U...] [--scale=X,Y,Z|U...]...
@@ -99,50 +131,17 @@ Options:
       --type=TYPE
       --help
 ```
-
-
-<details>
-<summary><b>Compile</b></summary>
-
-## Compile
-To compile the conversion helper into a jar, simply run
-```
-mvn -Denforcer.skip=true clean package
-```
-
-To run locally build a fat jar including Spark:
-```
-mvn -Denforcer.skip=true -PfatWithSpark clean package
-```
-
-To run on the Janelia cluster build a fat jar without Spark:
-```
-mvn -Denforcer.skip=true -Pfat clean package
-```
-
 </details>
 
-### Janelia cluster
+___
 
-Clone the repository with submodules:
-```
-git clone --recursive https://github.com/saalfeldlab/paintera-conversion-helper.git
-```
-If you have already cloned the repository, run this after cloning to fetch the submodules:
-```
-git submodule update --init --recursive
-```
+### To Scalar
 
-Then, run the following script to build the package:
+`paintera-convert` can also convert from paintera label sources to scalar label datasets:
 ```
-./build-for-cluster.py
+paintera-convert to-scalar [...]
 ```
-
-For submitting a job to the Janelia cluster you can use the following script:
-```
-startup-scripts/spark-janelia/convert.py  <number of cluster nodes>  <other parameters>
-```
-The first parameter is the number of cluster nodes to use (for example, 5), and the rest is the same parameters as in the `paintera-convert` command.
-
-
-
+`to-scalar` will extract the highest resolution scale level of a Paintera dataset as a multiscale `uint64` dataset. 
+This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. 
+Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added. 
+See `to-scalar --help` for more details.
