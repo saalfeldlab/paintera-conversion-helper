@@ -3,8 +3,6 @@ description: >-
   Convert N5/Zarr/HDF5 datasets to or from Paintera-style N5 datasets
   Submits a Spark job to the Janelia cluster via flintstone;
 repo_url: https://github.com/saalfeldlab/paintera-conversion-helper
-requirements:
-  - maven
 
 runnables:
   - id: to-paintera
@@ -17,19 +15,48 @@ runnables:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
+    pre_run: git submodule update --init --recursive
     command: >-
       ./startup-scripts/fileglancer-paintera-convert.sh to-paintera
     parameters:
+      - flag: --container
+        name: Input container
+        type: directory
+        required: true
+      - flag: -d
+        name: Input dataset
+        type: string
+        required: true
+        description: "Path to the input dataset within the container, e.g. volumes/labels/s0"
+      - flag: --output-container
+        name: Output container
+        type: directory
+        description: "Output N5 container for the Paintera group; created if it does not exist"
+      - flag: --type
+        name: Type
+        type: enum
+        options:
+          - raw
+          - label
+          - channel
+        required: true
+        default: label
       - flag: --n-nodes
         name: Worker nodes
         type: integer
         required: true
         min: 1
         description: "Number of cluster worker nodes for the Spark job"
-      - flag: --output-container
-        name: Output container
-        type: directory
-        required: true
+      - flag: --target-dataset
+        name: Target dataset
+        type: string
+        required: false
+        description: "Output group within the Paintera container; defaults to the input dataset path"
+      - flag: --dataset-resolution
+        name: Resolution
+        type: string
+        required: false
+        description: "Physical resolution x,y,z; overrides the input's resolution attribute. Example: 4,4,40"
       - flag: --scale
         name: Scale factors
         type: string
@@ -55,59 +82,25 @@ runnables:
         description: "Use a scalar label type with winner-takes-all downsampling. If 'false' or omitted, data will be LabelMultisetType"
       - flag: --overwrite-existing
         name: Overwrite existing
+        hidden: true
         type: boolean
         default: false
-      - flag: --container
-        name: Input container
-        type: directory
-        required: true
-      - flag: -d
-        name: Input dataset
-        type: string
-        required: true
-        description: "Path to the input dataset within the container, e.g. volumes/labels/s0"
-      - flag: --target-dataset
-        name: Target dataset
-        type: string
-        required: false
-        description: "Output group within the Paintera container; defaults to the input dataset path"
-      - flag: --type
-        name: Type
-        type: enum
-        options:
-          - raw
-          - label
-          - channel
-        required: true
-        default: label
-      - flag: --dataset-resolution
-        name: Resolution
-        type: string
-        required: false
-        description: "Physical resolution x,y,z; overrides the input's resolution attribute. Example: 4,4,40"
 
   - id: to-scalar
     name: Export Paintera Dataset To Scalar
     description: >-
       Extract the highest-resolution scale level of a Paintera (or multiscale/single-scale) label
-      source into a multiscale uint64 scalar dataset, running on N_NODES cluster worker nodes via
-      flintstone. Optionally apply the fragment-segment-assignment. Zarr3 output can be sharded and
-      writes OME-Zarr metadata.
+      source into a multiscale uint64 scalar dataset. Optionally apply the fragment-segment-assignment. 
+      Zarr3 output can be sharded and writes OME-Zarr metadata.
     working_dir: repo
     resources:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
+    pre_run: git submodule update --init --recursive
     command: >-
       ./startup-scripts/fileglancer-paintera-convert.sh to-scalar
     parameters:
-      - flag: --n-nodes
-        name: Worker nodes
-        type: integer
-        required: true
-        min: 1
-        default: 1
-        description: "Number of cluster worker nodes for the Spark job"
       - flag: -i
         name: Input container
         type: directory
@@ -120,12 +113,18 @@ runnables:
       - flag: -o
         name: Output container
         type: directory
-        required: true
+        description: "Container to save the converted dataset to. Created if it doesn't exist."
       - flag: -O
         name: Output dataset
         type: string
         required: false
         description: "Defaults to the input dataset path"
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        description: "Number of cluster worker nodes for the Spark job"
       - flag: --output-format
         name: Output format
         type: enum
@@ -135,7 +134,13 @@ runnables:
           - ZARR2
           - ZARR3
         required: false
-        description: "Defaults to the input container's storage scheme, else inferred on write"
+        default: ZARR
+        description: >-
+          Output storage format of the generated dataset. Explicit support for N5, ZARR2, and ZARR3.
+          ZARR without the version will default to ZARR3 if no container exists, but if a container
+          exists, it will keep the version of the container. All zarr containers contain OME-Zarr
+          metadata, and ZARR3 supports sharding. If left unset, the format is taken from the output
+          container's path, else inferred on write.
       - flag: --scale
         name: Scale factors
         type: string
