@@ -15,7 +15,7 @@ runnables:
       walltime: "24:00"
     pre_run: umask 0002 && git submodule update --init --recursive
     command: >-
-      ./startup-scripts/fileglancer-paintera-convert.sh to-paintera
+      "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh to-paintera
     parameters:
       - flag: --container
         name: Input container
@@ -105,7 +105,7 @@ runnables:
       walltime: "24:00"
     pre_run: umask 0002 && git submodule update --init --recursive
     command: >-
-      ./startup-scripts/fileglancer-paintera-convert.sh to-scalar
+      "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh to-scalar
     parameters:
       - flag: -i
         name: Input container
@@ -194,7 +194,7 @@ runnables:
       walltime: "24:00"
     pre_run: umask 0002 && git submodule update --init --recursive
     command: >-
-      ./startup-scripts/fileglancer-paintera-convert.sh
+      "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh
     parameters:
       - flag: --n-nodes
         name: Worker nodes

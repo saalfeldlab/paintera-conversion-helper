@@ -25,10 +25,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # how often to poll, and how long to wait for the web UI URL before giving up on it (the
 # conversion keeps being waited on regardless)
-POLL_INTERVAL="${FG_POLL_INTERVAL:-30}"
+POLL_INTERVAL="${FG_POLL_INTERVAL:-10}"
 URL_TIMEOUT="${FG_URL_TIMEOUT:-1800}"
 # if the driver job never becomes visible to bjobs, bail after this many polls
-MAX_UNSEEN_POLLS="${FG_MAX_UNSEEN_POLLS:-20}"
+MAX_UNSEEN_POLLS="${FG_MAX_UNSEEN_POLLS:-60}"
 
 N_NODES=""
 REST=()
