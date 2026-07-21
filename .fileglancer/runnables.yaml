@@ -1,0 +1,221 @@
+name: Paintera Conversion Helper
+description: >-
+  Convert N5/Zarr/HDF5 datasets to or from Paintera-style N5 datasets
+  Submits a Spark job to the Janelia cluster via flintstone;
+
+runnables:
+  - id: to-paintera
+    name: Convert Scalar Dataset To Paintera
+    description: >-
+      Convert raw or label data into a Paintera-compatible N5 dataset with a multiscale pyramid.
+    working_dir: repo
+    resources:
+      cpus: 1
+      memory: "4 GB"
+      walltime: "24:00"
+    pre_run: |
+      umask 0002 
+      git submodule update --init --recursive
+    command: >-
+      "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh to-paintera
+    parameters:
+      - flag: --container
+        name: Input container
+        type: directory
+        required: true
+      - flag: -d
+        name: Input dataset
+        type: string
+        required: true
+        description: "Path to the input dataset within the container, e.g. volumes/labels/s0"
+      - flag: --output-container
+        name: Output container
+        type: directory
+        description: "Output N5 container for the Paintera group; created if it does not exist"
+      - flag: --type
+        name: Type
+        type: enum
+        description: "The Paintera dataset type of the converted dataset"
+        options:
+          - raw
+          - label
+          - channel
+        required: true
+        default: label
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        description: "Number of cluster worker nodes for the Spark job"
+      - flag: --target-dataset
+        name: Target dataset
+        type: string
+        required: false
+        description: "Output group within the Paintera container; defaults to the input dataset path"
+      - flag: --dataset-resolution
+        name: Resolution
+        type: string
+        required: false
+        description: "Physical resolution x,y,z; overrides the input's resolution attribute. Example: 4,4,40"
+      - flag: --slice-positions
+        name: Slice positions
+        type: string
+        required: false
+        description: >-
+          Reduce an nD input to a 3D XYZ Paintera source. One entry per input axis in source dimension
+          order: x/y/z mark the spatial axes, an integer slices that axis at the given index. Example: z,y,x,0,10
+      - flag: --scale
+        name: Scale factors
+        type: string
+        required: true
+        default: "2,2,2 2,2,2"
+        description: >-
+          Relative downsampling factor per level as whitespace-separated x,y,z triples
+          (a single integer u means u,u,u). Example: `2,2,1 2,2,1 2`.
+      - flag: --block-size
+        name: Block size
+        type: string
+        default: "64,64,64"
+      - flag: --reverse-array-attributes
+        name: Reverse array attributes
+        type: boolean
+        default: false
+        description: "Reverse resolution/offset arrays, i.e. [x,y,z] -> [z,y,x]. NOTE: N5-Zarr interop generally handles this automatically, especially for Zarr3. Only Reverse if you are sure it's necessary."
+      - flag: --winner-takes-all-downsampling
+        name: Winner-takes-all downsampling
+        hidden: true
+        type: boolean
+        default: false
+        description: "Use a scalar label type with winner-takes-all downsampling. If 'false' or omitted, data will be LabelMultisetType"
+      - flag: --overwrite-existing
+        name: Overwrite existing
+        hidden: true
+        type: boolean
+        default: false
+
+  - id: to-scalar
+    name: Export Paintera Dataset To Scalar
+    description: >-
+      Extract the highest-resolution scale level of a Paintera (or multiscale/single-scale) label
+      source into a multiscale uint64 scalar dataset. Optionally apply the fragment-segment-assignment. 
+      Zarr3 output can be sharded and writes OME-Zarr metadata.
+    working_dir: repo
+    resources:
+      cpus: 1
+      memory: "4 GB"
+      walltime: "24:00"
+    pre_run: |
+      umask 0002 
+      git submodule update --init --recursive
+    command: >-
+      "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh to-scalar
+    parameters:
+      - flag: -i
+        name: Input container
+        type: directory
+        required: true
+      - flag: -I
+        name: Input dataset
+        type: string
+        required: true
+        description: "Paintera dataset, multiscale N5 group, or regular dataset; s0/data/s0 is used"
+      - flag: -o
+        name: Output container
+        type: directory
+        description: "Container to save the converted dataset to. Created if it doesn't exist."
+      - flag: -O
+        name: Output dataset
+        type: string
+        required: false
+        description: "Defaults to the input dataset path"
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        description: "Number of cluster worker nodes for the Spark job"
+      - flag: --output-format
+        name: Output format
+        type: enum
+        options:
+          - N5
+          - ZARR
+          - ZARR2
+          - ZARR3
+        required: false
+        default: ZARR
+        description: >-
+          Output storage format of the generated dataset. Explicit support for N5, ZARR2, and ZARR3.
+          ZARR without the version will default to ZARR3 if no container exists, but if a container
+          exists, it will keep the version of the container. All zarr containers contain OME-Zarr
+          metadata, and ZARR3 supports sharding. If left unset, the format is taken from the output
+          container's path, else inferred on write.
+      - flag: --scale
+        name: Scale factors
+        type: string
+        required: false
+        default: "2,2,2 2,2,2"
+        description: "Whitespace-separated x,y,z downsampling triples, e.g. `2,2,2 2,2,2`"
+      - flag: --block-size
+        name: Block size
+        type: string
+        required: false
+        description: "Comma-separated block size; if omitted, defaults to the input dataset's block size"
+      - flag: --chunks-per-shard
+        name: Chunks per shard
+        type: string
+        required: false
+        description: "Chunks per shard per axis (one value or three). Only valid for --output-format ZARR3"
+      - flag: --resolution
+        name: Resolution
+        type: string
+        required: false
+        description: >-
+          Physical resolution x,y,z; overrides the input's resolution attribute. Required for
+          Paintera inputs, which store it on the data group rather than s0. Example: 4,4,40
+      - flag: --xyz-unit
+        name: XYZ unit
+        type: string
+        required: false
+        default: nm
+        description: "Unit for x, y, z (one value or one per axis)"
+      - flag: --consider-fragment-segment-assignment
+        name: Consider fragment-segment-assignment
+        type: boolean
+        default: false
+        description: "Apply the Paintera fragment-segment-assignment; ignored for non-Paintera inputs"
+
+  - id: freeform
+    name: Freeform Arguments
+    description: >-
+      Run to-paintera or to-scalar with hand-written arguments, for anything the guided forms
+      don't cover. Reports the Spark web UI URL and waits for the job to finish.
+    working_dir: repo
+    resources:
+      cpus: 1
+      memory: "4 GB"
+      walltime: "24:00"
+    pre_run: |
+      umask 0002 
+      git submodule update --init --recursive
+    command: >-
+      "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh
+    parameters:
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        description: "Number of cluster worker nodes for the Spark job"
+      - name: Freeform (paste arguments)
+        type: string
+        raw: true
+        required: true
+        description: >-
+          Paste a paintera-convert invocation starting with the subcommand (to-paintera or to-scalar),
+          followed by its arguments.
+            Flags may use `--flag value` or `--flag=value`.
+            repeated values are whitespace-separated (e.g. --scale 2,2,2 2,2,2).
+            Shell operators (`;` `|` `&` `$` backticks) are not allowed.
+            Example: to-paintera --container=in.zarr -d labels/s0 --output-container=out.n5 --target-dataset=labels --type=label --scale 2,2,2 2,2,2 --block-size=32,32,32
