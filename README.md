@@ -35,6 +35,11 @@ To run locally:
 
 ### Janelia cluster
 
+#### 1. Fileglancer App
+- Paintera Conversion Helper is available as a Fileglancer App 
+
+#### 2. Spark-Janelia/Flintstone
+
 Clone the repository with submodules:
 ```
 git clone --recursive https://github.com/saalfeldlab/paintera-conversion-helper.git
