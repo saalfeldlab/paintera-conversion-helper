@@ -13,7 +13,9 @@ runnables:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
-    pre_run: umask 0002 && git submodule update --init --recursive
+    pre_run: |
+      umask 0002 
+      git submodule update --init --recursive
     command: >-
       "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh to-paintera
     parameters:
@@ -103,7 +105,9 @@ runnables:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
-    pre_run: umask 0002 && git submodule update --init --recursive
+    pre_run: |
+      umask 0002 
+      git submodule update --init --recursive
     command: >-
       "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh to-scalar
     parameters:
@@ -192,7 +196,9 @@ runnables:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
-    pre_run: umask 0002 && git submodule update --init --recursive
+    pre_run: |
+      umask 0002 
+      git submodule update --init --recursive
     command: >-
       "$(git rev-parse --show-toplevel)"/startup-scripts/fileglancer-paintera-convert.sh
     parameters:

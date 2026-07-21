@@ -22,6 +22,11 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# run from the repo root so the jar build (mvnw) finds pom.xml and flintstone finds its scripts,
+# regardless of the directory Fileglancer launches us from (it uses the app's .fileglancer dir)
+cd "$PROJECT_ROOT"
 
 # how often to poll, and how long to wait for the web UI URL before giving up on it (the
 # conversion keeps being waited on regardless)
