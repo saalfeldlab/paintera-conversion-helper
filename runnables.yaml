@@ -1,0 +1,172 @@
+name: Paintera Conversion Helper
+description: >-
+  Convert N5/Zarr/HDF5 datasets to or from Paintera-style N5 datasets
+  Submits a Spark job to the Janelia cluster via flintstone;
+repo_url: https://github.com/saalfeldlab/paintera-conversion-helper
+requirements:
+  - maven
+
+runnables:
+  - id: to-paintera
+    name: Convert Scalar Dataset To Paintera
+    description: >-
+      Convert raw or label datasets into a Paintera-compatible N5 group with a multiscale
+      mipmap pyramid, running on N_NODES cluster worker nodes via flintstone.
+    working_dir: repo
+    resources:
+      cpus: 1
+      memory: "4 GB"
+      walltime: "24:00"
+    command: >-
+      ./startup-scripts/fileglancer-paintera-convert.sh to-paintera
+    parameters:
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        description: "Number of cluster worker nodes for the Spark job"
+      - flag: --output-container
+        name: Output container
+        type: directory
+        required: true
+      - flag: --scale
+        name: Scale factors
+        type: string
+        required: true
+        default: "2,2,2 2,2,2"
+        description: >-
+          Relative downsampling factor per level as whitespace-separated x,y,z triples
+          (a single integer u means u,u,u). Example: `2,2,1 2,2,1 2`.
+      - flag: --block-size
+        name: Block size
+        type: string
+        default: "64,64,64"
+      - flag: --reverse-array-attributes
+        name: Reverse array attributes
+        type: boolean
+        default: false
+        description: "Reverse resolution/offset arrays, i.e. [x,y,z] -> [z,y,x]"
+      - flag: --winner-takes-all-downsampling
+        name: Winner-takes-all downsampling
+        hidden: true
+        type: boolean
+        default: false
+        description: "Use a scalar label type with winner-takes-all downsampling. If 'false' or omitted, data will be LabelMultisetType"
+      - flag: --overwrite-existing
+        name: Overwrite existing
+        type: boolean
+        default: false
+      - flag: --container
+        name: Input container
+        type: directory
+        required: true
+      - flag: -d
+        name: Input dataset
+        type: string
+        required: true
+        description: "Path to the input dataset within the container, e.g. volumes/labels/s0"
+      - flag: --target-dataset
+        name: Target dataset
+        type: string
+        required: false
+        description: "Output group within the Paintera container; defaults to the input dataset path"
+      - flag: --type
+        name: Type
+        type: enum
+        options:
+          - raw
+          - label
+          - channel
+        required: true
+        default: label
+      - flag: --dataset-resolution
+        name: Resolution
+        type: string
+        required: false
+        description: "Physical resolution x,y,z; overrides the input's resolution attribute. Example: 4,4,40"
+
+  - id: to-scalar
+    name: Export Paintera Dataset To Scalar
+    description: >-
+      Extract the highest-resolution scale level of a Paintera (or multiscale/single-scale) label
+      source into a multiscale uint64 scalar dataset, running on N_NODES cluster worker nodes via
+      flintstone. Optionally apply the fragment-segment-assignment. Zarr3 output can be sharded and
+      writes OME-Zarr metadata.
+    working_dir: repo
+    resources:
+      cpus: 1
+      memory: "4 GB"
+      walltime: "24:00"
+    command: >-
+      ./startup-scripts/fileglancer-paintera-convert.sh to-scalar
+    parameters:
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        default: 1
+        description: "Number of cluster worker nodes for the Spark job"
+      - flag: -i
+        name: Input container
+        type: directory
+        required: true
+      - flag: -I
+        name: Input dataset
+        type: string
+        required: true
+        description: "Paintera dataset, multiscale N5 group, or regular dataset; s0/data/s0 is used"
+      - flag: -o
+        name: Output container
+        type: directory
+        required: true
+      - flag: -O
+        name: Output dataset
+        type: string
+        required: false
+        description: "Defaults to the input dataset path"
+      - flag: --output-format
+        name: Output format
+        type: enum
+        options:
+          - N5
+          - ZARR
+          - ZARR2
+          - ZARR3
+        required: false
+        description: "Defaults to the input container's storage scheme, else inferred on write"
+      - flag: --scale
+        name: Scale factors
+        type: string
+        required: false
+        default: "2,2,2 2,2,2"
+        description: "Whitespace-separated x,y,z downsampling triples, e.g. `2,2,2 2,2,2`"
+      - flag: --block-size
+        name: Block size
+        type: string
+        required: false
+        description: "Comma-separated block size; if omitted, defaults to the input dataset's block size"
+      - flag: --chunks-per-shard
+        name: Chunks per shard
+        type: string
+        required: false
+        description: "Chunks per shard per axis (one value or three). Only valid for --output-format ZARR3"
+      - flag: --resolution
+        name: Resolution
+        type: string
+        required: false
+        description: >-
+          Physical resolution x,y,z; overrides the input's resolution attribute. Required for
+          Paintera inputs, which store it on the data group rather than s0. Example: 4,4,40
+      - flag: --xyz-unit
+        name: XYZ unit
+        type: string
+        required: false
+        default: nm
+        description: "Unit for x, y, z (one value or one per axis)"
+      - flag: --consider-fragment-segment-assignment
+        name: Consider fragment-segment-assignment
+        type: boolean
+        default: false
+        description: "Apply the Paintera fragment-segment-assignment; ignored for non-Paintera inputs"
