@@ -7,6 +7,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
+import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.algorithm.util.Singleton
 import net.imglib2.algorithm.util.Singleton.ThrowingSupplier
 import net.imglib2.converter.Converter
@@ -23,16 +24,24 @@ import org.apache.http.message.BasicNameValuePair
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter
+import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import picocli.CommandLine
 import scala.Tuple2
 import java.io.IOException
 import java.io.Serializable
+import java.nio.ByteBuffer
 import java.util.Optional
 import java.util.function.Supplier
 import java.util.stream.Collectors
@@ -57,9 +66,15 @@ object ExtractHighestResolutionLabelDataset {
 		datasetOut: String?,
 		blockSizeOut: IntArray?,
 		considerFragmentSegmentAssignment: Boolean,
-		assignment: TLongLongMap
+		assignment: TLongLongMap,
+		xyzUnit: Array<String>,
+		chunksPerShard: IntArray? = null,
+		scales: Array<IntArray> = emptyArray(),
+		downsampleBlockSizes: Array<IntArray> = emptyArray(),
+		resolutionOverride: DoubleArray? = null,
+		offsetOverride: DoubleArray? = null
 	) {
-		extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment)
+		extract(sc, n5in, n5out, datasetIn, datasetOut, blockSizeOut, considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes, resolutionOverride, offsetOverride)
 	}
 
 	@JvmStatic
@@ -72,7 +87,13 @@ object ExtractHighestResolutionLabelDataset {
 		datasetOut: String?,
 		blockSizeOut: IntArray?,
 		considerFragmentSegmentAssignment: Boolean,
-		assignment: TLongLongMap
+		assignment: TLongLongMap,
+		xyzUnit: Array<String>,
+		chunksPerShard: IntArray? = null,
+		scales: Array<IntArray> = emptyArray(),
+		downsampleBlockSizes: Array<IntArray> = emptyArray(),
+		resolutionOverride: DoubleArray? = null,
+		offsetOverride: DoubleArray? = null
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>? {
 		extract<IN, UnsignedLongType>(
 			sc,
@@ -86,7 +107,13 @@ object ExtractHighestResolutionLabelDataset {
 			},
 			emptyMap(),
 			considerFragmentSegmentAssignment,
-			assignment
+			assignment,
+			xyzUnit,
+			chunksPerShard,
+			scales,
+			downsampleBlockSizes,
+			resolutionOverride,
+			offsetOverride
 		)
 	}
 
@@ -101,7 +128,13 @@ object ExtractHighestResolutionLabelDataset {
 		outputTypeSupplier: Supplier<OUT>,
 		additionalAttributes: Map<String?, Any>,
 		considerFragmentSegmentAssignment: Boolean,
-		assignment: TLongLongMap
+		assignment: TLongLongMap,
+		xyzUnit: Array<String>,
+		chunksPerShard: IntArray? = null,
+		scales: Array<IntArray> = emptyArray(),
+		downsampleBlockSizes: Array<IntArray> = emptyArray(),
+		resolutionOverride: DoubleArray? = null,
+		offsetOverride: DoubleArray? = null
 	) where IN : NativeType<IN>?, IN : IntegerType<IN>?, OUT : NativeType<OUT>?, OUT : IntegerType<OUT>? {
 		val n5InLocal = n5in.get()
 		if (!n5InLocal.exists(datasetIn)) {
@@ -121,7 +154,7 @@ object ExtractHighestResolutionLabelDataset {
 					}
 					extract(
 						sc, n5in, n5out, "$datasetIn/data", datasetOut, blockSizeOut, outputTypeSupplier, updatedAdditionalEntries,
-						considerFragmentSegmentAssignment, assignment
+						considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes, resolutionOverride, offsetOverride
 					)
 					return
 				} catch (e: NoValidDatasetException) {
@@ -131,7 +164,7 @@ object ExtractHighestResolutionLabelDataset {
 				try {
 					extract(
 						sc, n5in, n5out, "$datasetIn/s0", datasetOut, blockSizeOut, outputTypeSupplier, additionalAttributes,
-						considerFragmentSegmentAssignment, assignment
+						considerFragmentSegmentAssignment, assignment, xyzUnit, chunksPerShard, scales, downsampleBlockSizes, resolutionOverride, offsetOverride
 					)
 					return
 				} catch (e: NoValidDatasetException) {
@@ -145,53 +178,75 @@ object ExtractHighestResolutionLabelDataset {
 		val attributesIn = n5InLocal.getDatasetAttributes(datasetIn)
 		val dimensions = attributesIn.dimensions.clone()
 		val blockSize = blockSizeOut ?: attributesIn.blockSize
-		val dataType = if (outputIsLabelMultiset
-		) DataType.UINT8
-		else N5Utils.dataType(outputTypeSupplier.get())
+		val dataType = DataType.UINT8.takeIf { outputIsLabelMultiset } ?: N5Utils.dataType(outputTypeSupplier.get())
 
-		n5out.get().createDataset(datasetOut, dimensions, blockSize, dataType, GzipCompression())
+		val outWriter = n5out.get()
+		/* serialize OME-NGFF multiscale metadata; 0.5 unless zarr2 */
+		val ngffVersion = "0.5".takeUnless {  outWriter is ZarrKeyValueWriter } ?: "0.4"
+		val dataDataset = "$datasetOut/s0"
+		outWriter.createGroup(datasetOut)
+
+		val datasetAttributes = if (chunksPerShard != null && outWriter is ZarrV3KeyValueWriter) {
+			/* shard size = chunks-per-shard * block size ( when sharded the block size parameter is used for chunk size; maybe should rename)  */
+			val shardSize = IntArray(blockSize.size) { chunksPerShard[it] * blockSize[it] }
+			ZarrV3DatasetAttributes(dimensions, shardSize, blockSize, dataType, ZstandardCompression())
+		} else {
+			DatasetAttributes(dimensions, blockSize, dataType, ZstandardCompression())
+		}
+
+		outWriter.createDataset( dataDataset, datasetAttributes )
+		/* the unit of parallel write is always the DatasetAttributes#blockSize. when sharded this is the shard size */
+		val outputBlockSize = outWriter.getDatasetAttributes(dataDataset).blockSize
 		val keys = assignment.keys()
 		val values = assignment.values()
 
-		// TODO automate copy of attributes if/when N5 separates attributes from dataset attributes
-//        for (Map.Entry<String, Class<?>> entry :n5in.get().listAttributes(datasetIn).entrySet()) {
-//            if (DATASET_ATTRIBUTES.contains(entry.getKey()))
-//                continue;
-//            try {
-//                Object attr = n5in.get().getAttribute(datasetIn, entry.getKey(), entry.getValue());
-//                LOG.debug("Copying attribute { {}: {} } of type {}", entry.getKey(), attr, entry.getValue());
-//                n5out.get().setAttribute(datasetOut, entry.getKey(), attr);
-//            } catch (IOException e) {
-//                LOG.warn("Unable to copy attribute { {}: {} }", entry.getKey(), entry.getValue());
-//                LOG.debug("Unable to copy attribute { {}: {} }", entry.getKey(), entry.getValue(), e);
-//            }
-//        }
-		Optional
-			.ofNullable(n5InLocal.getAttribute(datasetIn, "resolution", DoubleArray::class.java))
-			.ifPresent(ThrowingConsumer.unchecked { r: DoubleArray -> n5out.get().setAttribute(datasetOut, "resolution", r) })
+		val resolution = resolutionOverride ?: n5InLocal.getAttribute(datasetIn, "resolution", DoubleArray::class.java) ?: DoubleArray(dimensions.size) { 1.0 }
+		val offset = offsetOverride ?: n5InLocal.getAttribute(datasetIn, "offset", DoubleArray::class.java) ?: DoubleArray(dimensions.size) { 0.0 }
+		/* resolution/offset become the OME-NGFF scale/translation transforms; one dataset per pyramid level, with the
+		 * per-level scale accumulating the relative downsampling factors */
+		val axes = arrayOf(
+			Axis(Axis.SPACE, "x", xyzUnit[0], false),
+			Axis(Axis.SPACE, "y", xyzUnit[1], false),
+			Axis(Axis.SPACE, "z", xyzUnit[2], false)
+		)
+		val scalePaths = Array(scales.size + 1) { "s$it" }
+		val levelResolutions = arrayListOf(resolution.copyOf())
+		val levelTranslations = arrayListOf(offset.copyOf())
+		val cumulativeFactor = DoubleArray(dimensions.size) { 1.0 }
+		scales.forEach { factor ->
+			for (d in cumulativeFactor.indices) cumulativeFactor[d] = cumulativeFactor[d] * factor[d]
+			levelResolutions.add(DoubleArray(dimensions.size) { resolution[it] * cumulativeFactor[it] })
+			levelTranslations.add(offset.copyOf())
+		}
+		val metadata = OmeNgffMetadata.buildForWriting(
+			dimensions.size,
+			datasetOut,
+			ngffVersion,
+			axes,
+			scalePaths,
+			levelResolutions.toTypedArray(),
+			levelTranslations.toTypedArray()
+		)
 
-		Optional
-			.ofNullable(n5InLocal.getAttribute(datasetIn, "offset", DoubleArray::class.java))
-			.ifPresent(ThrowingConsumer.unchecked { o: DoubleArray -> n5out.get().setAttribute(datasetOut, "offset", o) })
+		n5InLocal.getAttribute(datasetIn, "maxId", Long::class.javaPrimitiveType)?.let { maxId ->
+			outWriter.setAttribute(dataDataset, "maxId", maxId)
+		}
 
-		Optional
-			.ofNullable(n5InLocal.getAttribute(datasetIn, "maxId", Long::class.javaPrimitiveType))
-			.ifPresent(ThrowingConsumer.unchecked { id: Long -> n5out.get().setAttribute(datasetOut, "maxId", id) })
-
-		additionalAttributes.entries.forEach(ThrowingConsumer.unchecked { e: Map.Entry<String?, Any> -> n5out.get().setAttribute(datasetOut, e.key, e.value) })
+		additionalAttributes.entries.forEach(ThrowingConsumer.unchecked { e: Map.Entry<String?, Any> -> outWriter.setAttribute(dataDataset, e.key, e.value) })
 
 		try {
-			n5out.get().setAttribute(datasetOut, N5LabelMultisets.LABEL_MULTISETTYPE_KEY, outputIsLabelMultiset)
+			outWriter.setAttribute(dataDataset, N5LabelMultisets.LABEL_MULTISETTYPE_KEY, outputIsLabelMultiset)
 		} catch (e: IOException) {
 			LOG.warn { "Unable to write attribute { ${N5LabelMultisets.LABEL_MULTISETTYPE_KEY}: $outputIsLabelMultiset }" }
 			LOG.debug(e) { "Unable to write attribute { ${N5LabelMultisets.LABEL_MULTISETTYPE_KEY}: $outputIsLabelMultiset }" }
 		}
 		val isLabelMultiset = N5LabelMultisets.isLabelMultisetType(n5InLocal, datasetIn)
 
-		if (!(DataType.UINT8 == attributesIn.dataType && isLabelMultiset || isValidType(attributesIn.dataType) && !isLabelMultiset)) throw InvalidTypeException(attributesIn.dataType, isLabelMultiset)
+		if (!(DataType.UINT8 == attributesIn.dataType && isLabelMultiset || isValidType(attributesIn.dataType) && !isLabelMultiset))
+			throw InvalidTypeException(attributesIn.dataType, isLabelMultiset)
 
 		val blocks: List<Tuple2<Tuple2<LongArray, LongArray>, LongArray>> = Grids
-			.collectAllContainedIntervalsWithGridPositions(dimensions, blockSize)
+			.collectAllContainedIntervalsWithGridPositions(dimensions, outputBlockSize)
 			.stream()
 			.map { p: Pair<Interval, LongArray> -> Tuple2(Tuple2(Intervals.minAsLongArray(p.a), Intervals.maxAsLongArray(p.a)), p.b) }
 			.collect(Collectors.toList())
@@ -217,15 +272,9 @@ object ExtractHighestResolutionLabelDataset {
 					blockWithPosition._1()._2()
 				)
 
-				val attributes = DatasetAttributes(
-					dimensions,
-					blockSize,
-					N5Utils.dataType(outputTypeSupplier.get()),
-					GzipCompression()
-				)
-
 				val converted = Converters.convert(
-					block, getAppropriateConverter(TLongLongHashMap(keys, values)),
+					block,
+					getAppropriateConverter(TLongLongHashMap(keys, values)),
 					outputTypeSupplier.get()
 				)
 
@@ -237,8 +286,42 @@ object ExtractHighestResolutionLabelDataset {
 
 				val writer = Singleton.get(writerCacheKey, ThrowingSupplier { n5LocalOut })
 
-				N5Utils.saveBlock(converted, writer, datasetOut, attributes, blockWithPosition._2())
+				/* read the created dataset's attributes so sharded writes route into shards */
+				val attributes = writer.getDatasetAttributes(dataDataset)
+
+				val fillValue = (attributes as? ZarrV3DatasetAttributes)?.run { ByteBuffer.wrap(fillBytes).long } ?: 0L
+				val fillType = outputTypeSupplier.get()!!.also { it.setInteger(fillValue) }
+				/* Converters.convert view over LabelMultisetType is not PrimitiveBlocks-compatible,
+				 * since LabelMultisetType only pretends to be a NativeType. We have to materialize
+				 * it here before saving  */
+				val materialized = ArrayImgFactory(fillType).create(*Intervals.dimensionsAsLongArray(converted))
+				val source = Views.flatIterable(converted).cursor()
+				val target = Views.flatIterable(materialized).cursor()
+
+				while (target.hasNext())
+					target.next().setInteger(source.next().integerLong)
+
+				/* saveNonEmptyBlock skips empty chunks/shard. Its gridOffset is in chunk-grid units,
+				 * but our parallel unit is the shard, so scale the grid position by chunks-per-shard. */
+				val chunkGridOffset = LongArray(dimensions.size) {
+					blockWithPosition._2()[it] * (attributes.blockSize[it] / attributes.chunkSize[it])
+				}
+				N5Utils.saveNonEmptyBlock(materialized, writer, dataDataset, attributes, chunkGridOffset, fillType)
 			}
+
+		/* build the downsampled pyramid s1..sN from s0; each level is sharded when chunksPerShard is set */
+		var previousLevel = dataDataset
+		scales.forEachIndexed { level, factor ->
+			val nextLevel = "$datasetOut/s${level + 1}"
+			N5LabelDownsamplerSpark.downsampleLabel<UnsignedLongType>(
+				sc, n5out, previousLevel, nextLevel, factor,
+				downsampleBlockSizes.getOrElse(level) { blockSize }, chunksPerShard, false
+			)
+			previousLevel = nextLevel
+		}
+
+		/* write the multiscale metadata once every level exists */
+		OmeNgffMetadataParser(outWriter).writeMetadata(metadata, outWriter, datasetOut)
 	}
 
 	private fun <IN : IntegerType<IN>?, OUT : IntegerType<OUT>?> getAppropriateConverter(map: TLongLongMap?): Converter<IN, OUT> {

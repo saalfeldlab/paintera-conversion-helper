@@ -1,14 +1,13 @@
 package org.janelia.saalfeldlab.conversion.to.paintera
 
-import com.google.gson.JsonElement
-import net.imglib2.type.NativeType
-import net.imglib2.type.label.LabelMultisetType
-import net.imglib2.type.numeric.IntegerType
-import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.integer.UnsignedLongType
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.DatasetInfo
 import org.janelia.saalfeldlab.conversion.createReader
 import org.janelia.saalfeldlab.conversion.createWriter
+import org.janelia.saalfeldlab.conversion.parseSlicePositions
+import org.janelia.saalfeldlab.conversion.slicedInputImgSupplier
 import org.janelia.saalfeldlab.label.spark.convert.ConvertToLabelMultisetType
 import org.janelia.saalfeldlab.label.spark.downsample.SparkDownsampler
 import org.janelia.saalfeldlab.label.spark.exception.InputSameAsOutput
@@ -19,9 +18,9 @@ import org.janelia.saalfeldlab.label.spark.uniquelabels.ExtractUniqueLabelsPerBl
 import org.janelia.saalfeldlab.label.spark.uniquelabels.LabelToBlockMapping
 import org.janelia.saalfeldlab.label.spark.uniquelabels.downsample.LabelListDownsampler
 import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.spark.N5ConvertSpark
 import org.janelia.saalfeldlab.n5.spark.downsample.N5LabelDownsamplerSpark
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import java.io.File
 import java.io.IOException
 import java.nio.file.Paths
@@ -39,6 +38,7 @@ class DatasetConverterLabel(info: DatasetInfo) : DatasetConverter(info) {
 			parameters.reverseArrayAttributes,
 			parameters.winnerTakesAllDownsampling,
 			parameters.labelBlockLookupN5BlockSize,
+			parameters.slicePositions,
 			overwriteExisiting
 		)
 	}
@@ -47,6 +47,11 @@ class DatasetConverterLabel(info: DatasetInfo) : DatasetConverter(info) {
 		get() = "label"
 
 }
+
+private val SUPPORTED_LABEL_TYPES = setOf(
+	DataType.INT8, DataType.UINT8, DataType.INT16, DataType.UINT16,
+	DataType.INT32, DataType.UINT32, DataType.INT64, DataType.UINT64,
+)
 
 @Throws(IOException::class)
 private fun handleLabelDatasetInferType(
@@ -59,228 +64,29 @@ private fun handleLabelDatasetInferType(
 	reverse: Boolean,
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
+	slicePositions: String?,
 	overwriteExisiting: Boolean = false
 ) {
-	if (winnerTakesAll)
-		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
-			DataType.INT8 -> handleLabelDataset<ByteType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT8 -> handleLabelDataset<UnsignedByteType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT16 -> handleLabelDataset<ShortType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT16 -> handleLabelDataset<UnsignedShortType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT32 -> handleLabelDataset<IntType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT32 -> handleLabelDataset<UnsignedIntType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT64 -> handleLabelDataset<LongType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT64 -> handleLabelDataset<UnsignedLongType, UnsignedLongType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			else -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
-		}
-	else
-		when (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType) {
-			DataType.INT8 -> handleLabelDataset<ByteType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT8 -> handleLabelDataset<UnsignedByteType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT16 -> handleLabelDataset<ShortType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT16 -> handleLabelDataset<UnsignedShortType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT32 -> handleLabelDataset<IntType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT32 -> handleLabelDataset<UnsignedIntType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.INT64 -> handleLabelDataset<LongType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			DataType.UINT64 -> handleLabelDataset<UnsignedLongType, LabelMultisetType>(
-				sc,
-				info,
-				blockSize,
-				scales,
-				downsamplingBlockSizes,
-				maxNumEntries,
-				reverse,
-				winnerTakesAll,
-				labelBlockLookupN5BlockSize,
-				overwriteExisiting
-			)
-
-			else -> throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
-		}
+	/* the dataType is only validated here; the spark converters resolve the actual type at runtime */
+	if (createReader(info.inputContainer)?.getDatasetAttributes(info.inputDataset)?.dataType !in SUPPORTED_LABEL_TYPES)
+		throw IOException("Unable to infer data type from dataset `${info.inputDataset}' in container `${info.inputContainer}'")
+	handleLabelDataset(
+		sc,
+		info,
+		blockSize,
+		scales,
+		downsamplingBlockSizes,
+		maxNumEntries,
+		reverse,
+		winnerTakesAll,
+		labelBlockLookupN5BlockSize,
+		slicePositions,
+		overwriteExisiting
+	)
 }
 
 @Throws(IOException::class, InvalidDataType::class, InvalidN5Container::class, InvalidDataset::class, InputSameAsOutput::class)
-private fun <I, O> handleLabelDataset(
+private fun handleLabelDataset(
 	sc: JavaSparkContext,
 	info: DatasetInfo,
 	initialBlockSize: IntArray,
@@ -290,11 +96,10 @@ private fun <I, O> handleLabelDataset(
 	reverse: Boolean,
 	winnerTakesAll: Boolean,
 	labelBlockLookupN5BlockSize: Int?,
+	slicePositions: String?,
 	overwriteExisting: Boolean
-) where
-		I : IntegerType<I>, I : NativeType<I>,
-		O : IntegerType<O>, O : NativeType<O> {
-	val writer = createWriter(info.outputContainer)
+) {
+	val writer = createWriter(info.outputFormat, info.outputContainer)
 	writer.createGroup(info.outputGroup)
 
 	val dataGroup = "${info.outputGroup}/data"
@@ -307,14 +112,15 @@ private fun <I, O> handleLabelDataset(
 	val labelBlockMappingGroupDirectory = File(labelBlockMappingGroup).absolutePath
 
 	if (winnerTakesAll) {
-		N5ConvertSpark.convert<I, O>(
+		/* input type is erased and resolved at runtime; output is uint64 for winner-takes-all */
+		N5ConvertSpark.convert<Nothing, UnsignedLongType>(
 			sc,
 			{ createReader(info.inputContainer) },
 			info.inputDataset,
-			{ createWriter(info.outputContainer) },
+			{ createWriter(info.outputFormat, info.outputContainer) },
 			originalResolutionOutputDataset,
 			Optional.of(initialBlockSize),
-			Optional.of(GzipCompression()), // TODO pass compression as parameter
+			Optional.of(ZstandardCompression()), // TODO pass compression as parameter
 			Optional.empty(),
 			Optional.empty(),
 			overwriteExisting
@@ -323,9 +129,9 @@ private fun <I, O> handleLabelDataset(
 		for ((scaleNum, scale) in scales.withIndex()) {
 			val newScaleDataset = scaleGroup(info.outputGroup, scaleNum + 1)
 
-			N5LabelDownsamplerSpark.downsampleLabel<O>(
+			N5LabelDownsamplerSpark.downsampleLabel<UnsignedLongType>(
 				sc,
-				{ createWriter(info.outputContainer) },
+				{ createWriter(info.outputFormat, info.outputContainer) },
 				scaleGroup(info.outputGroup, scaleNum),
 				newScaleDataset,
 				scale,
@@ -335,8 +141,8 @@ private fun <I, O> handleLabelDataset(
 
 		val maxId = ExtractUniqueLabelsPerBlock.extractUniqueLabels(
 			sc,
-			info.outputContainer,
-			info.outputContainer,
+			info.outputContainer.toString(),
+			info.outputContainer.toString(),
 			originalResolutionOutputDataset,
 			Paths.get(uniqueLabelsGroup, "s0").toString()
 		)
@@ -347,28 +153,44 @@ private fun <I, O> handleLabelDataset(
 		if (scales.isNotEmpty())
 		// TODO refactor this to be nicer
 		{
-			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer, uniqueLabelsGroup, scales, downsampleBlockSizes)
+			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer.toString(), uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	} else {
 		// TODO pass compression and reverse array as parameters
-		ConvertToLabelMultisetType.convertToLabelMultisetType<I>(
-			sc,
-			info.inputContainer,
-			info.inputDataset,
-			initialBlockSize,
-			info.outputContainer,
-			originalResolutionOutputDataset,
-			GzipCompression(),
-			reverse
-		)
+		if (slicePositions != null) {
+			/* nD input: convert from a lazy, disk-cached 3D slice instead of the source path */
+			val dimensions = createReader(info.inputContainer)!!.getDatasetAttributes(info.inputDataset).dimensions
+			val spec = parseSlicePositions(slicePositions, dimensions)
+			val slicedSupplier = slicedInputImgSupplier(info.inputContainer, info.inputDataset, spec, initialBlockSize)
+			ConvertToLabelMultisetType.convertToLabelMultisetType(
+				sc,
+				slicedSupplier,
+				initialBlockSize,
+				initialBlockSize,
+				info.outputContainer.toString(),
+				originalResolutionOutputDataset,
+				ZstandardCompression()
+			)
+		} else {
+			ConvertToLabelMultisetType.convertToLabelMultisetType<Nothing>(
+				sc,
+				info.inputContainer,
+				info.inputDataset,
+				initialBlockSize,
+				info.outputContainer.toString(),
+				originalResolutionOutputDataset,
+				ZstandardCompression(),
+				reverse
+			)
+		}
 
 
 		writer.setAttribute(info.outputGroup, "maxId", writer.getAttribute(originalResolutionOutputDataset, "maxId", Long::class.java))
 
 		ExtractUniqueLabelsPerBlock.extractUniqueLabels(
 			sc,
-			info.outputContainer,
-			info.outputContainer,
+			info.outputContainer.toString(),
+			info.outputContainer.toString(),
 			originalResolutionOutputDataset,
 			"$uniqueLabelsGroup/s0"
 		)
@@ -376,26 +198,25 @@ private fun <I, O> handleLabelDataset(
 
 		if (scales.isNotEmpty()) {
 			// TODO pass compression as parameter
-			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, GzipCompression())
-			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer, uniqueLabelsGroup, scales, downsampleBlockSizes)
+			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer.toString(), dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, ZstandardCompression())
+			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer.toString(), uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	}
 
 	if (labelBlockLookupN5BlockSize != null) {
 		LabelToBlockMapping.createMappingWithMultiscaleCheckN5(
 			sc,
-			info.outputContainer,
+			info.outputContainer.toString(),
 			uniqueLabelsGroup,
-			info.outputContainer,
+			info.outputContainer.toString(),
 			info.outputGroup,
 			labelBlockMappingGroupBasename,
 			labelBlockLookupN5BlockSize
 		)
 
 	} else {
-		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer, uniqueLabelsGroup, labelBlockMappingGroupDirectory)
+		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer.toString(), uniqueLabelsGroup, labelBlockMappingGroupDirectory)
 	}
-	writer.getAttribute(labelBlockMappingGroup, LABEL_BLOCK_LOOKUP_KEY, JsonElement::class.java)?.also { labelBlockLookup ->
-		writer.setAttribute(info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, labelBlockLookup)
-	}
+	/* write the group-level lookup metadata */
+	writer.setAttribute(info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, LabelBlockLookupFromN5Relative("$labelBlockMappingGroupBasename/s%d"))
 }

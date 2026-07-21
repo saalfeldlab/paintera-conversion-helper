@@ -17,14 +17,13 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset.LookupPair
 import org.janelia.saalfeldlab.conversion.ExtractHighestResolutionLabelDataset.extract
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
-import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.spark.supplier.N5ReaderSupplier
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier
 import org.janelia.saalfeldlab.n5.universe.N5Factory
-import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import picocli.CommandLine
@@ -84,7 +83,7 @@ class ExtractHighestResolutionLabelDatasetTest {
 				originalContainer,
 				highestResolution,
 				inputBlockSize,
-				GzipCompression()
+				ZstandardCompression()
 			)
 
 			originalContainer.setAttribute(painteraDataset, "painteraData", "")
@@ -105,24 +104,22 @@ class ExtractHighestResolutionLabelDatasetTest {
 						getReader(originalContainerPath.toAbsolutePath().toString()),
 						getWriter(outputContainerPath.toAbsolutePath().toString()),
 						inputDatasets[idx],
-						String.format("%d", idx),
+						"$idx",
 						intArrayOf(4, 2, 3),
 						false,
-						TLongLongHashMap()
+						TLongLongHashMap(),
+						arrayOf("pixel", "pixel", "pixel")
 					)
-					assertArrayEquals(resolution, n5out.getAttribute(String.format("%d", idx), "resolution", DoubleArray::class.java), 0.0)
-					assertArrayEquals(offset, n5out.getAttribute(String.format("%d", idx), "offset", DoubleArray::class.java), 0.0)
-
-					LoopBuilder.setImages(labelData, N5Utils.open<UnsignedLongType>(n5out, String.format("%d", idx)))
+					LoopBuilder.setImages(labelData, N5Utils.open<UnsignedLongType>(n5out, "$idx/s0"))
 						.forEachPixel(BiConsumer { s: UnsignedLongType, t: UnsignedLongType ->
 							LOG.debug { "Comparing $s and $t (actual)" }
 							assertTrue(s.valueEquals(t))
 						})
 				}
 
-				assertEquals(editedMaxId, n5out.getAttribute("0", "maxId", Long::class.javaPrimitiveType) as Long)
-				assertEquals(initialMaxId, n5out.getAttribute("1", "maxId", Long::class.javaPrimitiveType) as Long)
-				assertEquals(initialMaxId, n5out.getAttribute("2", "maxId", Long::class.javaPrimitiveType) as Long)
+				assertEquals(editedMaxId, n5out.getAttribute("0/s0", "maxId", Long::class.javaPrimitiveType) as Long)
+				assertEquals(initialMaxId, n5out.getAttribute("1/s0", "maxId", Long::class.javaPrimitiveType) as Long)
+				assertEquals(initialMaxId, n5out.getAttribute("2/s0", "maxId", Long::class.javaPrimitiveType) as Long)
 			}
 		}
 	}
@@ -207,7 +204,8 @@ class ExtractHighestResolutionLabelDatasetTest {
 						outputDataset,
 						blockSize,
 						considerFragmentSegmentAssignment ?: false,
-						assignment
+						assignment,
+						arrayOf("pixel", "pixel", "pixel")
 					)
 				}
 				return null

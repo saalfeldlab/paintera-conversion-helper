@@ -5,8 +5,12 @@ import gnu.trove.map.hash.TLongLongHashMap
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.*
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
+import org.janelia.saalfeldlab.conversion.to.paintera.SpatialDoubleArray
+import org.janelia.saalfeldlab.conversion.to.paintera.SpatialIntArray
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import picocli.CommandLine
 import java.io.IOException
+import java.net.URI
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
@@ -34,7 +38,18 @@ class ToScalar : Callable<Int> {
 	private lateinit var inputDataset: String
 
 	@CommandLine.Option(names = ["--output-container", "-o"], required = true)
-	private lateinit var outputContainer: String
+	private lateinit var _outputContainer: String
+
+	@CommandLine.Option(names = ["--output-format"], required = false, defaultValue = "", paramLabel = "OUTPUT_FORMAT")
+	private var _outputFormat: String = ""
+
+	/* explicit --output-format, else the storage scheme of the container, else inferred on write */
+	private val outputFormat: StorageFormat?
+		get() = runCatching { StorageFormat.valueOf(_outputFormat) }.getOrNull()
+			?: StorageFormat.parseUri(_outputContainer).a
+
+	private val outputContainer: URI
+		get() = StorageFormat.parseUri(_outputContainer).b
 
 	@CommandLine.Option(names = ["--output-dataset", "-O"], required = false, description = ["defaults to input dataset"])
 	internal var outputDataset: String? = null
@@ -49,6 +64,62 @@ class ToScalar : Callable<Int> {
 	private lateinit var blockSize: IntArray
 
 	@CommandLine.Option(
+		names = ["--chunks-per-shard"],
+		required = false,
+		split = ",",
+		description = ["Number of chunks per shard, per axis (one value or three). Only valid for OUTPUT_FORMAT=ZARR3"]
+	)
+	private var chunksPerShard: IntArray? = null
+
+	@CommandLine.Option(
+		names = ["--scale"],
+		arity = "1..*",
+		split = "\\s",
+		converter = [SpatialIntArray.Converter::class],
+		paramLabel = SpatialIntArray.PARAM_LABEL,
+		description = [
+			"Relative downsampling factors for each level in the format x,y,z, where x,y,z are integers. Single integers u are interpreted as u,u,u.",
+		]
+	)
+	private var _scales: Array<SpatialIntArray>? = null
+
+	@CommandLine.Option(
+		names = ["--downsample-block-sizes"],
+		arity = "1..*",
+		split = "\\s",
+		converter = [SpatialIntArray.Converter::class],
+		paramLabel = SpatialIntArray.PARAM_LABEL,
+		description = ["Output block size per downsampled level; defaults to --block-size for every level."]
+	)
+	private var _downsampleBlockSizes: Array<SpatialIntArray>? = null
+
+	@CommandLine.Option(
+		names = ["--xyz-unit"],
+		required = true,
+		split = ",",
+		description = ["Unit for the x, y, z (1 value, or 1 value per axis)."],
+	)
+	private lateinit var xyzUnit: Array<String>
+
+	@CommandLine.Option(
+		names = ["--resolution"],
+		required = false,
+		converter = [SpatialDoubleArray.Converter::class],
+		paramLabel = SpatialDoubleArray.PARAM_LABEL,
+		description = ["Physical resolution x,y,z (a single value u means u,u,u). Overrides the input's resolution attribute; needed for Paintera inputs, which store it on the data group rather than s0."]
+	)
+	private var _resolution: SpatialDoubleArray? = null
+
+	@CommandLine.Option(
+		names = ["--offset"],
+		required = false,
+		converter = [SpatialDoubleArray.Converter::class],
+		paramLabel = SpatialDoubleArray.PARAM_LABEL,
+		description = ["Physical offset x,y,z (a single value u means u,u,u). Overrides the input's offset attribute."]
+	)
+	private var _offset: SpatialDoubleArray? = null
+
+	@CommandLine.Option(
 		names = ["--consider-fragment-segment-assignment"],
 		required = false,
 		defaultValue = "false",
@@ -59,7 +130,7 @@ class ToScalar : Callable<Int> {
 	@CommandLine.Option(
 		names = ["--spark-master"],
 		required = false,
-		description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. loca[24] )."]
+		description = ["Spark master URL. Default will run locally with up to 24 workers (e.g. local[24] )."]
 	)
 	var sparkMaster: String? = null
 
@@ -85,10 +156,10 @@ class ToScalar : Callable<Int> {
 		val outputDataset = outputDataset ?: inputDataset
 
 		return try {
-
-			if (inputContainer == outputContainer && inputDataset == outputDataset)
+			val inputUri = StorageFormat.parseUri(inputContainer).b
+			if (inputUri == outputContainer && inputDataset == outputDataset)
 				throw InvalidOutputDataset(
-					outputContainer,
+					outputContainer.toString(),
 					outputDataset,
 					"Input and output are the same datasets `$outputDataset' in the same container `$outputContainer'"
 				)
@@ -103,12 +174,51 @@ class ToScalar : Callable<Int> {
 				}
 			}
 
+			val chunksPerShard = this.chunksPerShard?.let { chunksPerShard ->
+				val argString = chunksPerShard.joinToString(", ", "[", "]")
+				val chunks = when (chunksPerShard.size) {
+					1 -> IntArray(3) { chunksPerShard[0] }
+					3 -> chunksPerShard.clone()
+					else -> throw InvalidBlockSize(chunksPerShard, "chunks-per-shard has to be specified with one or three entries but got $argString")
+				}
+
+				val zeroChunksAnyDim = chunks.any { it < 1 }
+				if (zeroChunksAnyDim)
+					throw InvalidBlockSize(chunksPerShard, "chunks-per-shard entries have to be positive but got $argString")
+
+				val oneChunkPerShard = chunks.all { it == 1 }
+				if (oneChunkPerShard)
+					throw InvalidBlockSize(chunksPerShard, "chunks-per-shard has to be greater than 1 in at least one dimension but got $argString")
+
+				chunks
+			}
+
+			val xyzUnit = this.xyzUnit.let { units ->
+				when (units.size) {
+					1 -> Array(3) { units[0] }
+					3 -> units.clone()
+					else -> throw InvalidAxisUnit(units, "xyz-unit has to be specified with one or three entries but got ${units.joinToString(", ", "[", "]")}")
+				}
+			}
+
+			val scales = _scales?.map { it.array }?.toTypedArray() ?: emptyArray()
+			val downsampleBlockSizes = _downsampleBlockSizes?.map { it.array }?.toTypedArray()
+				?.also { if (it.size != scales.size) throw InvalidBlockSize(blockSize, "--downsample-block-sizes must have one entry per --scale level (${scales.size}), but got ${it.size}") }
+				?: Array(scales.size) { blockSize }
+
 			extract(
 				inputContainer,
+				outputFormat,
 				outputContainer,
 				inputDataset,
 				outputDataset,
 				blockSize,
+				chunksPerShard,
+				xyzUnit,
+				scales,
+				downsampleBlockSizes,
+				_resolution?.array,
+				_offset?.array,
 				considerFragmentSegmentAssignment,
 				assignment,
 				sparkMaster
@@ -126,10 +236,17 @@ class ToScalar : Callable<Int> {
 		@Throws(IOException::class)
 		private fun extract(
 			inputContainer: String,
-			outputContainer: String,
+			outputFormat: StorageFormat?,
+			outputContainer: URI,
 			inputDataset: String,
 			outputDataset: String,
 			blockSize: IntArray,
+			chunksPerShard: IntArray?,
+			xyzUnit: Array<String>,
+			scales: Array<IntArray>,
+			downsampleBlockSizes: Array<IntArray>,
+			resolution: DoubleArray?,
+			offset: DoubleArray?,
 			considerFragmentSegmentAssignment: Boolean,
 			assignment: TLongLongMap,
 			sparkMaster: String?
@@ -141,12 +258,18 @@ class ToScalar : Callable<Int> {
 				ExtractHighestResolutionLabelDataset.extractNoGenerics(
 					sc,
 					{ createReader(inputContainer) },
-					{ createWriter(outputContainer) },
+					{ createWriter(outputFormat, outputContainer) },
 					inputDataset,
 					outputDataset,
 					blockSize,
 					considerFragmentSegmentAssignment,
-					assignment
+					assignment,
+					xyzUnit,
+					chunksPerShard,
+					scales,
+					downsampleBlockSizes,
+					resolution,
+					offset
 				)
 			}
 

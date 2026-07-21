@@ -4,13 +4,14 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.ivy.core.IvyPatternHelper.TYPE_KEY
 import org.apache.spark.api.java.JavaSparkContext
 import org.janelia.saalfeldlab.conversion.ConversionException
+import org.janelia.saalfeldlab.conversion.InvalidOutputContainer
 import org.janelia.saalfeldlab.conversion.DatasetInfo
 import org.janelia.saalfeldlab.conversion.PainteraConvert.Companion.EXIT_CODE_EXECUTION_EXCEPTION
 import org.janelia.saalfeldlab.conversion.to.newSparkConf
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import picocli.CommandLine
-import java.io.File
 import java.io.IOException
 import java.net.URI
 import java.util.concurrent.Callable
@@ -71,6 +72,15 @@ class ToPainteraData {
 		@CommandLine.Option(names = ["--output-container"], required = true, paramLabel = "OUTPUT_CONTAINER")
 		lateinit var _outputContainer: String
 
+		@CommandLine.Option(names = ["--output-format"], required = false, defaultValue = "", paramLabel = "OUTPUT_FORMAT")
+		var _outputFormat: String = ""
+
+		val outputFormat: StorageFormat?
+            get() = runCatching {
+				StorageFormat.valueOf(_outputFormat)
+			}.getOrNull()
+				?: StorageFormat.parseUri(_outputContainer).a
+
 		@CommandLine.Option(
 			names = ["--spark-master"],
 			required = false,
@@ -84,13 +94,25 @@ class ToPainteraData {
 		@CommandLine.Option(names = ["--help"], help = true, usageHelp = true)
 		var helpRequested: Boolean = false
 
-		val outputContainer: String
-			get() = File(_outputContainer).absolutePath
+		val outputContainer: URI
+			get() = StorageFormat.parseUri(_outputContainer).b
 
 		override fun call(): Int {
 
 			if (helpRequested)
 				return 0
+
+			/* Only N5 Format supports Paintera datasets right now, as both the
+			* label multiset type and the adjacent index dataset are varlen  */
+			val resolvedOutputFormat = outputFormat ?: StorageFormat.guessStorageFromUri(outputContainer)
+			if (resolvedOutputFormat != null && resolvedOutputFormat != StorageFormat.N5) {
+				val error = InvalidOutputContainer(
+					_outputContainer,
+					"to-paintera only supports output-format=N5, but got `$resolvedOutputFormat'"
+				)
+				LOG.error { error.message }
+				return error.exitCode
+			}
 
 			parameters.call()
 			containers.forEach { it.parameters.initGlobalParameters(parameters); it.call() }
@@ -105,6 +127,7 @@ class ToPainteraData {
 						inputContainer = container.container.toString(),
 						inputDataset = dataset.dataset,
 						outputContainer = outputContainer,
+						outputFormat = outputFormat,
 						outputGroup = dataset.targetDataset
 					)
 					try {
@@ -488,6 +511,17 @@ class DatasetSpecificParameters {
 	@CommandLine.Option(names = ["--type"], completionCandidates = TypeOptions::class, required = false, paramLabel = "TYPE")
 	private var _type: String? = null
 
+	@CommandLine.Option(
+		names = ["--slice-positions"],
+		required = false,
+		description = [
+			"Reduce an nD input to a 3D XYZ Paintera source. One argument per input axis in source dimension order: " +
+					"`x'/`y'/`z' indicate a spatial index, an integer determines where to slice at that axis (e.g. `z,y,x,0,10'). "
+					  ],
+		paramLabel = "SLICE_POSITIONS"
+	)
+	private var _slicePositions: String? = null
+
 	@CommandLine.Option(names = ["--dataset-max-num-entries"], hidden = true, arity = "1..*", paramLabel = "N")
 	private var _maxNumEntries: IntArray? = null
 
@@ -523,6 +557,9 @@ class DatasetSpecificParameters {
 
 	val type: String?
 		get() = _type
+
+	val slicePositions: String?
+		get() = _slicePositions
 
 	val maxNumEntries: IntArray
 		get() = _maxNumEntries?.let { fillUpTo(if (it.isEmpty()) intArrayOf(-1) else it, numScales) } ?: fillUpTo(containerParameters.maxNumEntries, numScales)
