@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml)
+[![Build Status](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build.yml/badge.svg)](https://github.com/saalfeldlab/paintera-conversion-helper/actions/workflows/build-main.yml)
 ![GitHub Release](https://img.shields.io/github/v/release/saalfeldlab/paintera-conversion-helper)
 
 # Paintera Conversion Helper
