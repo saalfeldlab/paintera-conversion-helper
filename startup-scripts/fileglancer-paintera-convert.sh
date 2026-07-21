@@ -14,14 +14,14 @@
 # -> shutdown LSF chain and returns. We locate the run from flintstone's own output, then
 # poll the shared-filesystem logs and the driver job's LSF state.
 #
-# usage: fileglancer-paintera-convert.sh <subcommand> --n-nodes N [paintera-convert args...]
+# usage: fileglancer-paintera-convert.sh [--n-nodes N] <subcommand> [paintera-convert args...]
+#
+# `--n-nodes` may appear anywhere (Fileglancer emits flagged fields before positional ones); it is
+# pulled out and the first remaining token is taken as the subcommand.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-SUBCOMMAND="${1:?missing subcommand (to-paintera|to-scalar)}"
-shift
 
 # how often to poll, and how long to wait for the web UI URL before giving up on it (the
 # conversion keeps being waited on regardless)
@@ -31,12 +31,12 @@ URL_TIMEOUT="${FG_URL_TIMEOUT:-1800}"
 MAX_UNSEEN_POLLS="${FG_MAX_UNSEEN_POLLS:-20}"
 
 N_NODES=""
-PAINTERA_ARGS=()
+REST=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --n-nodes) N_NODES="$2"; shift 2 ;;
         --n-nodes=*) N_NODES="${1#*=}"; shift ;;
-        *) PAINTERA_ARGS+=("$1"); shift ;;
+        *) REST+=("$1"); shift ;;
     esac
 done
 
@@ -44,6 +44,13 @@ if [[ -z "$N_NODES" ]]; then
     echo "error: --n-nodes is required" 1>&2
     exit 1
 fi
+if [[ "${#REST[@]}" -eq 0 ]]; then
+    echo "error: missing subcommand (to-paintera|to-scalar)" 1>&2
+    exit 1
+fi
+
+SUBCOMMAND="${REST[0]}"
+PAINTERA_ARGS=("${REST[@]:1}")
 
 USER_NAME="${USER:-$(id -un)}"
 

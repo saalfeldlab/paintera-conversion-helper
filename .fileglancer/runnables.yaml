@@ -2,20 +2,18 @@ name: Paintera Conversion Helper
 description: >-
   Convert N5/Zarr/HDF5 datasets to or from Paintera-style N5 datasets
   Submits a Spark job to the Janelia cluster via flintstone;
-repo_url: https://github.com/saalfeldlab/paintera-conversion-helper
 
 runnables:
   - id: to-paintera
     name: Convert Scalar Dataset To Paintera
     description: >-
-      Convert raw or label datasets into a Paintera-compatible N5 group with a multiscale
-      mipmap pyramid, running on N_NODES cluster worker nodes via flintstone.
+      Convert raw or label data into a Paintera-compatible N5 dataset with a multiscale pyramid.
     working_dir: repo
     resources:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
-    pre_run: git submodule update --init --recursive
+    pre_run: umask 0002 && git submodule update --init --recursive
     command: >-
       ./startup-scripts/fileglancer-paintera-convert.sh to-paintera
     parameters:
@@ -35,6 +33,7 @@ runnables:
       - flag: --type
         name: Type
         type: enum
+        description: "The Paintera dataset type of the converted dataset"
         options:
           - raw
           - label
@@ -57,6 +56,13 @@ runnables:
         type: string
         required: false
         description: "Physical resolution x,y,z; overrides the input's resolution attribute. Example: 4,4,40"
+      - flag: --slice-positions
+        name: Slice positions
+        type: string
+        required: false
+        description: >-
+          Reduce an nD input to a 3D XYZ Paintera source. One entry per input axis in source dimension
+          order: x/y/z mark the spatial axes, an integer slices that axis at the given index. Example: z,y,x,0,10
       - flag: --scale
         name: Scale factors
         type: string
@@ -73,7 +79,7 @@ runnables:
         name: Reverse array attributes
         type: boolean
         default: false
-        description: "Reverse resolution/offset arrays, i.e. [x,y,z] -> [z,y,x]"
+        description: "Reverse resolution/offset arrays, i.e. [x,y,z] -> [z,y,x]. NOTE: N5-Zarr interop generally handles this automatically, especially for Zarr3. Only Reverse if you are sure it's necessary."
       - flag: --winner-takes-all-downsampling
         name: Winner-takes-all downsampling
         hidden: true
@@ -97,7 +103,7 @@ runnables:
       cpus: 1
       memory: "4 GB"
       walltime: "24:00"
-    pre_run: git submodule update --init --recursive
+    pre_run: umask 0002 && git submodule update --init --recursive
     command: >-
       ./startup-scripts/fileglancer-paintera-convert.sh to-scalar
     parameters:
@@ -175,3 +181,35 @@ runnables:
         type: boolean
         default: false
         description: "Apply the Paintera fragment-segment-assignment; ignored for non-Paintera inputs"
+
+  - id: freeform
+    name: Freeform Arguments
+    description: >-
+      Run to-paintera or to-scalar with hand-written arguments, for anything the guided forms
+      don't cover. Reports the Spark web UI URL and waits for the job to finish.
+    working_dir: repo
+    resources:
+      cpus: 1
+      memory: "4 GB"
+      walltime: "24:00"
+    pre_run: umask 0002 && git submodule update --init --recursive
+    command: >-
+      ./startup-scripts/fileglancer-paintera-convert.sh
+    parameters:
+      - flag: --n-nodes
+        name: Worker nodes
+        type: integer
+        required: true
+        min: 1
+        description: "Number of cluster worker nodes for the Spark job"
+      - name: Freeform (paste arguments)
+        type: string
+        raw: true
+        required: true
+        description: >-
+          Paste a paintera-convert invocation starting with the subcommand (to-paintera or to-scalar),
+          followed by its arguments.
+            Flags may use `--flag value` or `--flag=value`.
+            repeated values are whitespace-separated (e.g. --scale 2,2,2 2,2,2).
+            Shell operators (`;` `|` `&` `$` backticks) are not allowed.
+            Example: to-paintera --container=in.zarr -d labels/s0 --output-container=out.n5 --target-dataset=labels --type=label --scale 2,2,2 2,2,2 --block-size=32,32,32
