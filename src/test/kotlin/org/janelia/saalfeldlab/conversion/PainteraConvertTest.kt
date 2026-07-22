@@ -337,6 +337,38 @@ class PainteraConvertTest {
             })
     }
 
+    /* an output container without a recognizable extension used to be created in the N5Factory
+     * default format (zarr3), which cannot hold the varlen label multiset blocks */
+    @Test
+    fun `extensionless output container is created as n5`() {
+        val inputPath = "${Files.createTempDirectory("no-ext-in")}.n5"
+        N5Utils.save(LABELS, createWriter(inputPath), LABEL_SOURCE_DATASET, blockSize, RawCompression())
+        val painteraPath = Files.createTempDirectory("no-ext-out").resolve("data").toString()
+        val target = "volumes/labels"
+        System.setProperty("spark.master", "local[1]")
+        main(
+            arrayOf(
+                "to-paintera",
+                "--container=$inputPath",
+                "--output-container=$painteraPath",
+                "-d", LABEL_SOURCE_DATASET,
+                "--type=label",
+                "--target-dataset=$target",
+                "--block-size=2,2,2"
+            )
+        )
+
+        assertTrue(Files.exists(java.nio.file.Paths.get(painteraPath, "attributes.json")))
+        val painteraN5 = createWriter("n5:$painteraPath")
+        assertEquals(DataType.UINT8, painteraN5.getDatasetAttributes("$target/data/s0").dataType)
+        /* the unique-label extraction reads the multiset back; it threw NegativeArraySizeException on zarr3 */
+        assertTrue(painteraN5.datasetExists("$target/unique-labels/s0"))
+        LoopBuilder.setImages(LABELS, N5LabelMultisets.openLabelMultiset(painteraN5, "$target/data/s0"))
+            .forEachPixel(BiConsumer { e: UnsignedLongType, a: LabelMultisetType ->
+                assertTrue(a.entrySet().size == 1 && a.entrySet().iterator().next().element.id() == e.get())
+            })
+    }
+
     @Test
     fun `to-paintera only supports n5 output format`() {
         val inputPath = "${Files.createTempDirectory("guard-in")}.n5"

@@ -75,11 +75,18 @@ class ToPainteraData {
 		@CommandLine.Option(names = ["--output-format"], required = false, defaultValue = "", paramLabel = "OUTPUT_FORMAT")
 		var _outputFormat: String = ""
 
-		val outputFormat: StorageFormat?
-            get() = runCatching {
+		/* the format the user asked for, via --output-format or a scheme/extension on the container; null if unspecified */
+		val requestedOutputFormat: StorageFormat?
+			get() = runCatching {
 				StorageFormat.valueOf(_outputFormat)
 			}.getOrNull()
 				?: StorageFormat.parseUri(_outputContainer).a
+
+		/* Only N5 supports Paintera datasets right now, as both the label multiset type
+		 * and the adjacent index dataset are varlen; an unqualified container path would
+		 * otherwise be created in the N5Factory default format */
+		val outputFormat: StorageFormat
+			get() = StorageFormat.N5
 
 		@CommandLine.Option(
 			names = ["--spark-master"],
@@ -102,13 +109,11 @@ class ToPainteraData {
 			if (helpRequested)
 				return 0
 
-			/* Only N5 Format supports Paintera datasets right now, as both the
-			* label multiset type and the adjacent index dataset are varlen  */
-			val resolvedOutputFormat = outputFormat ?: StorageFormat.guessStorageFromUri(outputContainer)
-			if (resolvedOutputFormat != null && resolvedOutputFormat != StorageFormat.N5) {
+			val requested = requestedOutputFormat
+			if (requested != null && requested != StorageFormat.N5) {
 				val error = InvalidOutputContainer(
 					_outputContainer,
-					"to-paintera only supports output-format=N5, but got `$resolvedOutputFormat'"
+					"to-paintera only supports output-format=N5, but got `$requested'"
 				)
 				LOG.error { error.message }
 				return error.exitCode

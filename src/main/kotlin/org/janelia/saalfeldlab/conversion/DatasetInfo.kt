@@ -14,9 +14,15 @@ data class DatasetInfo(
 	val inputContainer: String,
 	val inputDataset: String,
 	val outputContainer: URI,
-	val outputFormat: StorageFormat? = null,
+	/* Paintera datasets are N5-only; the label multiset type and the adjacent index dataset are varlen */
+	val outputFormat: StorageFormat = StorageFormat.N5,
 	val outputGroup: String = inputDataset
 ) : Serializable {
+
+	/* label-utilities-spark opens containers from a plain string; qualify it with the
+	 * storage scheme so it cannot guess a different format than the one we write with */
+	val outputContainerUri: String
+		get() = "${outputFormat.name.lowercase()}:$outputContainer"
 
 	val type: String
 		get() {
