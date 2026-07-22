@@ -141,8 +141,8 @@ private fun handleLabelDataset(
 
 		val maxId = ExtractUniqueLabelsPerBlock.extractUniqueLabels(
 			sc,
-			info.outputContainer.toString(),
-			info.outputContainer.toString(),
+			info.outputContainerUri,
+			info.outputContainerUri,
 			originalResolutionOutputDataset,
 			Paths.get(uniqueLabelsGroup, "s0").toString()
 		)
@@ -153,7 +153,7 @@ private fun handleLabelDataset(
 		if (scales.isNotEmpty())
 		// TODO refactor this to be nicer
 		{
-			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer.toString(), uniqueLabelsGroup, scales, downsampleBlockSizes)
+			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainerUri, uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	} else {
 		// TODO pass compression and reverse array as parameters
@@ -167,7 +167,7 @@ private fun handleLabelDataset(
 				slicedSupplier,
 				initialBlockSize,
 				initialBlockSize,
-				info.outputContainer.toString(),
+				info.outputContainerUri,
 				originalResolutionOutputDataset,
 				ZstandardCompression()
 			)
@@ -177,7 +177,7 @@ private fun handleLabelDataset(
 				info.inputContainer,
 				info.inputDataset,
 				initialBlockSize,
-				info.outputContainer.toString(),
+				info.outputContainerUri,
 				originalResolutionOutputDataset,
 				ZstandardCompression(),
 				reverse
@@ -189,8 +189,8 @@ private fun handleLabelDataset(
 
 		ExtractUniqueLabelsPerBlock.extractUniqueLabels(
 			sc,
-			info.outputContainer.toString(),
-			info.outputContainer.toString(),
+			info.outputContainerUri,
+			info.outputContainerUri,
 			originalResolutionOutputDataset,
 			"$uniqueLabelsGroup/s0"
 		)
@@ -198,24 +198,24 @@ private fun handleLabelDataset(
 
 		if (scales.isNotEmpty()) {
 			// TODO pass compression as parameter
-			SparkDownsampler.downsampleMultiscale(sc, info.outputContainer.toString(), dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, ZstandardCompression())
-			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainer.toString(), uniqueLabelsGroup, scales, downsampleBlockSizes)
+			SparkDownsampler.downsampleMultiscale(sc, info.outputContainerUri, dataGroup, scales, downsampleBlockSizes, maxNumEntriesArray, ZstandardCompression())
+			LabelListDownsampler.donwsampleMultiscale(sc, info.outputContainerUri, uniqueLabelsGroup, scales, downsampleBlockSizes)
 		}
 	}
 
 	if (labelBlockLookupN5BlockSize != null) {
 		LabelToBlockMapping.createMappingWithMultiscaleCheckN5(
 			sc,
-			info.outputContainer.toString(),
+			info.outputContainerUri,
 			uniqueLabelsGroup,
-			info.outputContainer.toString(),
+			info.outputContainerUri,
 			info.outputGroup,
 			labelBlockMappingGroupBasename,
 			labelBlockLookupN5BlockSize
 		)
 
 	} else {
-		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainer.toString(), uniqueLabelsGroup, labelBlockMappingGroupDirectory)
+		LabelToBlockMapping.createMappingWithMultiscaleCheck(sc, info.outputContainerUri, uniqueLabelsGroup, labelBlockMappingGroupDirectory)
 	}
 	/* write the group-level lookup metadata */
 	writer.setAttribute(info.outputGroup, LABEL_BLOCK_LOOKUP_KEY, LabelBlockLookupFromN5Relative("$labelBlockMappingGroupBasename/s%d"))
