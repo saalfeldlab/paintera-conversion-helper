@@ -69,25 +69,31 @@ runnables:
         name: Scale factors
         type: string
         required: true
-        default: "2,2,2 2,2,2"
-        description: >-
-          Relative downsampling factor per level as whitespace-separated x,y,z triples
-          (a single integer u means u,u,u). Example: `2,2,1 2,2,1 2`.
+        default: "2 2"
+        description: |
+          Relative downsampling factor per level as whitespace-separated x,y,z triples (a single integer u means u,u,u). 
+            Example: `2,2,1 2,2,1 2`.
       - flag: --block-size
         name: Block size
         type: string
-        default: "64,64,64"
+        default: "32,32,32"
       - flag: --reverse-array-attributes
         name: Reverse array attributes
+        hidden: true
         type: boolean
         default: false
-        description: "Reverse resolution/offset arrays, i.e. [x,y,z] -> [z,y,x]. NOTE: N5-Zarr interop generally handles this automatically, especially for Zarr3. Only Reverse if you are sure it's necessary."
+        description: |
+          Reverse resolution/offset arrays, i.e. [x,y,z] -> [z,y,x].
+          NOTE: N5-Zarr interop generally handles this automatically, especially for Zarr3.
+          Only Reverse if you are sure it's necessary.
       - flag: --winner-takes-all-downsampling
         name: Winner-takes-all downsampling
         hidden: true
         type: boolean
         default: false
-        description: "Use a scalar label type with winner-takes-all downsampling. If 'false' or omitted, data will be LabelMultisetType"
+        description: |
+          In most cases this should be left "false" or omitted, which defaults the conversion to LabelMultisetType, which is useful for Paintera.
+          If true, uses a scalar label type with winner-takes-all downsampling.
       - flag: --overwrite-existing
         name: Overwrite existing
         hidden: true
@@ -145,12 +151,13 @@ runnables:
           - ZARR3
         required: false
         default: ZARR
-        description: >-
+        description: |
           Output storage format of the generated dataset. Explicit support for N5, ZARR2, and ZARR3.
           ZARR without the version will default to ZARR3 if no container exists, but if a container
-          exists, it will keep the version of the container. All zarr containers contain OME-Zarr
-          metadata, and ZARR3 supports sharding. If left unset, the format is taken from the output
-          container's path, else inferred on write.
+          exists, it will keep the version of the container. 
+          All zarr containers contain OME-Zarr metadata.
+          ZARR3 supports sharding.
+          If not provided a best-attempt is made to guess the format from the path, existing contain, or lastly a fallback to ZARR3.
       - flag: --scale
         name: Scale factors
         type: string
