@@ -91,15 +91,40 @@ fi
 LIB_DIR="${LIB_DIR:-$PROJECT_ROOT/target/dependency}"
 
 find_main_jar() {
-    ls "$LIB_DIR"/paintera-conversion-helper-*.jar 2>/dev/null \
-        | grep -vE '\-(sources|javadoc)\.jar$' | head -1 || true
+    local jar
+    for jar in "$LIB_DIR"/paintera-conversion-helper-*.jar; do
+        [[ -f "$jar" ]] || continue
+        case "$jar" in
+            *-sources.jar|*-javadoc.jar|*-tests.jar) continue ;;
+        esac
+        printf '%s\n' "$jar"
+        return 0
+    done
 }
+
+# a bundled Spark jar means a prior local build populated the dir with compile-scope Spark; prepend
+# `clean` to the build so it starts fresh with -Pspark-provided, since a bundled Spark would conflict
+# with the cluster's SPARK_HOME
+has_bundled_spark() {
+    local jar
+    for jar in "$LIB_DIR"/spark-core_2.12-*.jar; do
+        [[ -f "$jar" ]] && return 0
+    done
+    return 1
+}
+clean_first=0
+if has_bundled_spark; then
+    echo "cleaning a prior local (Spark-bundled) build before the cluster build" 1>&2
+    clean_first=1
+fi
 
 MAIN_JAR="${MAIN_JAR:-$(find_main_jar)}"
 
-if [[ ! -f "$MAIN_JAR" ]]; then
+if [[ "$clean_first" -eq 1 || ! -f "$MAIN_JAR" ]]; then
     export MAVEN_OPTS="-XX:ActiveProcessorCount=4 -XX:MaxRAMPercentage=25 ${MAVEN_OPTS:-}"
-    "$PROJECT_ROOT/mvnw" package -DskipTests -Pspark-provided ${MAVEN_ARGS:-}
+    goals=(package)
+    [[ "$clean_first" -eq 1 ]] && goals=(clean package)
+    "$PROJECT_ROOT/mvnw" "${goals[@]}" -DskipTests -Pspark-provided ${MAVEN_ARGS:-}
     MAIN_JAR="$(find_main_jar)"
 fi
 
