@@ -407,7 +407,7 @@
                 <dependency>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-databind</artifactId>
-                    <version>2.15.4</version>
+                    <version>2.18.11</version>
                     <scope>provided</scope>
                 </dependency>
                 <dependency>
@@ -419,7 +419,13 @@
                 <dependency>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-annotations</artifactId>
-                    <version>2.15.4</version>
+                    <version>2.18.11</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.fasterxml.jackson.module</groupId>
+                    <artifactId>jackson-module-scala_2.12</artifactId>
+                    <version>2.18.11</version>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
